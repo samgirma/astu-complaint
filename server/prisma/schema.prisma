@@ -55,6 +55,8 @@ model User {
   role          UserRole
   fullName      String
   staffDeptId   String?
+  phone         String?
+  status        String?        @default("active")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
