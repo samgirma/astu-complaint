@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const staffController = require('../controllers/staffController');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 
 const router = express.Router();
@@ -93,7 +93,7 @@ const updateStaffValidation = [
 ];
 
 // Apply authentication middleware to all routes
-router.use(auth);
+router.use(authenticateToken);
 router.use(adminAuth);
 
 // GET /api/admin/staff - Get all staff members
