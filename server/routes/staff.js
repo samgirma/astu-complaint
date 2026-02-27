@@ -7,111 +7,63 @@ const adminAuth = require('../middleware/adminAuth');
 const router = express.Router();
 
 // Validation rules
-const createStaffValidation = [
+const createDepartmentValidation = [
   body('name')
     .trim()
     .notEmpty()
-    .withMessage('Name is required')
+    .withMessage('Department name is required')
     .isLength({ max: 100 })
-    .withMessage('Name cannot exceed 100 characters'),
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('phone')
+    .withMessage('Department name cannot exceed 100 characters'),
+  body('description')
     .optional()
     .trim()
-    .isLength({ max: 20 })
-    .withMessage('Phone number cannot exceed 20 characters'),
-  body('department')
-    .trim()
-    .notEmpty()
-    .withMessage('Department is required')
-    .isIn([
-      'IT Department',
-      'Facilities Management',
-      'Academic Affairs',
-      'Student Services',
-      'Finance Department',
-      'Human Resources',
-      'Library Services',
-      'Security Department'
-    ])
-    .withMessage('Please select a valid department'),
-  body('role')
-    .optional()
-    .isIn(['staff', 'department_head', 'supervisor'])
-    .withMessage('Please select a valid role'),
-  body('status')
-    .optional()
-    .isIn(['active', 'inactive'])
-    .withMessage('Please select a valid status')
+    .isLength({ max: 500 })
+    .withMessage('Description cannot exceed 500 characters')
 ];
 
-const updateStaffValidation = [
+const updateDepartmentValidation = [
   body('name')
     .optional()
     .trim()
     .notEmpty()
-    .withMessage('Name cannot be empty')
+    .withMessage('Department name cannot be empty')
     .isLength({ max: 100 })
-    .withMessage('Name cannot exceed 100 characters'),
-  body('email')
-    .optional()
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('phone')
+    .withMessage('Department name cannot exceed 100 characters'),
+  body('description')
     .optional()
     .trim()
-    .isLength({ max: 20 })
-    .withMessage('Phone number cannot exceed 20 characters'),
-  body('department')
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage('Department cannot be empty')
-    .isIn([
-      'IT Department',
-      'Facilities Management',
-      'Academic Affairs',
-      'Student Services',
-      'Finance Department',
-      'Human Resources',
-      'Library Services',
-      'Security Department'
-    ])
-    .withMessage('Please select a valid department'),
-  body('role')
-    .optional()
-    .isIn(['staff', 'department_head', 'supervisor'])
-    .withMessage('Please select a valid role'),
-  body('status')
-    .optional()
-    .isIn(['active', 'inactive'])
-    .withMessage('Please select a valid status')
+    .isLength({ max: 500 })
+    .withMessage('Description cannot exceed 500 characters')
 ];
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
 router.use(adminAuth);
 
-// GET /api/admin/staff - Get all staff members
-router.get('/', staffController.getAllStaff);
+// GET /api/admin/staff/departments - Get all departments
+router.get('/departments', staffController.getAllDepartments);
 
-// GET /api/admin/staff/:id - Get single staff member
-router.get('/:id', staffController.getStaffById);
+// GET /api/admin/staff/departments/:id - Get single department
+router.get('/departments/:id', staffController.getDepartmentById);
 
-// POST /api/admin/staff - Create new staff member
-router.post('/', createStaffValidation, staffController.createStaff);
+// POST /api/admin/staff/departments - Create new department
+router.post('/departments', createDepartmentValidation, staffController.createDepartment);
 
-// PUT /api/admin/staff/:id - Update staff member
-router.put('/:id', updateStaffValidation, staffController.updateStaff);
+// PUT /api/admin/staff/departments/:id - Update department
+router.put('/departments/:id', updateDepartmentValidation, staffController.updateDepartment);
 
-// DELETE /api/admin/staff/:id - Delete staff member
-router.delete('/:id', staffController.deleteStaff);
+// DELETE /api/admin/staff/departments/:id - Delete department
+router.delete('/departments/:id', staffController.deleteDepartment);
 
-// GET /api/admin/staff/department/:department - Get staff by department
-router.get('/department/:department', staffController.getStaffByDepartment);
+// GET /api/admin/staff/departments/:departmentId/members - Get department members
+router.get('/departments/:departmentId/members', staffController.getDepartmentMembers);
+
+// Legacy routes for backward compatibility
+router.get('/', staffController.getAllDepartments);
+router.get('/:id', staffController.getDepartmentById);
+router.post('/', createDepartmentValidation, staffController.createDepartment);
+router.put('/:id', updateDepartmentValidation, staffController.updateDepartment);
+router.delete('/:id', staffController.deleteDepartment);
+router.get('/department/:department', staffController.getDepartmentMembers);
 
 module.exports = router;

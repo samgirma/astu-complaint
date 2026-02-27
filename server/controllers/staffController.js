@@ -3,17 +3,16 @@ const { validationResult } = require('express-validator');
 
 const prisma = new PrismaClient();
 
-// Get all staff members
-exports.getAllStaff = async (req, res) => {
+// Get all staff departments
+exports.getAllDepartments = async (req, res) => {
   try {
-    const staff = await prisma.user.findMany({
-      where: {
-        role: {
-          in: ['STAFF', 'ADMIN']
-        }
-      },
+    const departments = await prisma.staffDepartment.findMany({
       include: {
-        staffDepartment: true
+        _count: {
+          select: {
+            users: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -22,77 +21,75 @@ exports.getAllStaff = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Staff retrieved successfully',
+      message: 'Departments retrieved successfully',
       data: {
-        staff: staff.map(member => ({
-          id: member.id,
-          name: member.fullName,
-          email: member.email,
-          phone: member.phone,
-          department: member.staffDepartment?.name || 'Unassigned',
-          role: member.role.toLowerCase(),
-          status: member.status || 'active',
-          createdAt: member.createdAt,
-          updatedAt: member.updatedAt
+        departments: departments.map(dept => ({
+          id: dept.id,
+          name: dept.name,
+          description: dept.description,
+          memberCount: dept._count.users,
+          createdAt: dept.createdAt,
+          updatedAt: dept.updatedAt
         }))
       }
     });
   } catch (error) {
-    console.error('Error fetching staff:', error);
+    console.error('Error fetching departments:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch staff',
+      message: 'Failed to fetch departments',
       error: error.message
     });
   }
 };
 
-// Get single staff member
-exports.getStaffById = async (req, res) => {
+// Get single department
+exports.getDepartmentById = async (req, res) => {
   try {
-    const staff = await prisma.user.findUnique({
+    const department = await prisma.staffDepartment.findUnique({
       where: { id: req.params.id },
       include: {
-        staffDepartment: true
+        _count: {
+          select: {
+            users: true
+          }
+        }
       }
     });
     
-    if (!staff) {
+    if (!department) {
       return res.status(404).json({
         success: false,
-        message: 'Staff member not found'
+        message: 'Department not found'
       });
     }
     
     res.status(200).json({
       success: true,
-      message: 'Staff member retrieved successfully',
+      message: 'Department retrieved successfully',
       data: {
-        staff: {
-          id: staff.id,
-          name: staff.fullName,
-          email: staff.email,
-          phone: staff.phone,
-          department: staff.staffDepartment?.name || 'Unassigned',
-          role: staff.role.toLowerCase(),
-          status: staff.status || 'active',
-          createdAt: staff.createdAt,
-          updatedAt: staff.updatedAt
+        department: {
+          id: department.id,
+          name: department.name,
+          description: department.description,
+          memberCount: department._count.users,
+          createdAt: department.createdAt,
+          updatedAt: department.updatedAt
         }
       }
     });
   } catch (error) {
-    console.error('Error fetching staff member:', error);
+    console.error('Error fetching department:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch staff member',
+      message: 'Failed to fetch department',
       error: error.message
     });
   }
 };
 
-// Create new staff member
-exports.createStaff = async (req, res) => {
+// Create new department
+exports.createDepartment = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -103,69 +100,52 @@ exports.createStaff = async (req, res) => {
       });
     }
 
-    const { name, email, phone, department, role, status } = req.body;
+    const { name, description } = req.body;
 
-    // Check if staff member already exists with this email
-    const existingStaff = await prisma.user.findUnique({
-      where: { email }
+    // Check if department already exists
+    const existingDept = await prisma.staffDepartment.findUnique({
+      where: { name }
     });
-    if (existingStaff) {
+    if (existingDept) {
       return res.status(400).json({
         success: false,
-        message: 'Staff member with this email already exists'
+        message: 'Department with this name already exists'
       });
     }
 
-    // Create or get staff department
-    let staffDept = null;
-    if (department) {
-      staffDept = await prisma.staffDepartment.upsert({
-        where: { name: department },
-        update: { updatedAt: new Date() },
-        create: { name: department }
-      });
-    }
-
-    const newStaff = await prisma.user.create({
+    const newDepartment = await prisma.staffDepartment.create({
       data: {
-        fullName: name,
-        email,
-        phone,
-        role: role.toUpperCase(),
-        status: status || 'active',
-        staffDeptId: staffDept?.id
+        name,
+        description
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Staff member created successfully',
+      message: 'Department created successfully',
       data: {
-        staff: {
-          id: newStaff.id,
-          name: newStaff.fullName,
-          email: newStaff.email,
-          phone: newStaff.phone,
-          department: staffDept?.name || 'Unassigned',
-          role: newStaff.role.toLowerCase(),
-          status: newStaff.status || 'active',
-          createdAt: newStaff.createdAt,
-          updatedAt: newStaff.updatedAt
+        department: {
+          id: newDepartment.id,
+          name: newDepartment.name,
+          description: newDepartment.description,
+          memberCount: 0,
+          createdAt: newDepartment.createdAt,
+          updatedAt: newDepartment.updatedAt
         }
       }
     });
   } catch (error) {
-    console.error('Error creating staff member:', error);
+    console.error('Error creating department:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create staff member',
+      message: 'Failed to create department',
       error: error.message
     });
   }
 };
 
-// Update staff member
-exports.updateStaff = async (req, res) => {
+// Update department
+exports.updateDepartment = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -176,127 +156,128 @@ exports.updateStaff = async (req, res) => {
       });
     }
 
-    const { name, email, phone, department, role, status } = req.body;
-    const staffId = req.params.id;
+    const { name, description } = req.body;
+    const deptId = req.params.id;
 
-    // Check if staff member exists
-    const staff = await prisma.user.findUnique({
-      where: { id: staffId },
-      include: { staffDepartment: true }
+    // Check if department exists
+    const department = await prisma.staffDepartment.findUnique({
+      where: { id: deptId }
     });
-    if (!staff) {
+    if (!department) {
       return res.status(404).json({
         success: false,
-        message: 'Staff member not found'
+        message: 'Department not found'
       });
     }
 
-    // Check if email is being changed and if new email already exists
-    if (email !== staff.email) {
-      const existingStaff = await prisma.user.findUnique({
-        where: { email }
+    // Check if name is being changed and if new name already exists
+    if (name !== department.name) {
+      const existingDept = await prisma.staffDepartment.findUnique({
+        where: { name }
       });
-      if (existingStaff) {
+      if (existingDept) {
         return res.status(400).json({
           success: false,
-          message: 'Staff member with this email already exists'
+          message: 'Department with this name already exists'
         });
       }
     }
 
-    // Create or get staff department
-    let staffDept = null;
-    if (department) {
-      staffDept = await prisma.staffDepartment.upsert({
-        where: { name: department },
-        update: { updatedAt: new Date() },
-        create: { name: department }
-      });
-    }
+    // Update department
+    const updatedDepartment = await prisma.staffDepartment.update({
+      where: { id: deptId },
+      data: { name, description }
+    });
 
-    // Update staff member
-    const updatedStaff = await prisma.user.update({
-      where: { id: staffId },
-      data: {
-        fullName: name,
-        email,
-        phone,
-        role: role.toUpperCase(),
-        status: status || 'active',
-        staffDeptId: staffDept?.id
-      }
+    // Get updated member count
+    const memberCount = await prisma.user.count({
+      where: { staffDeptId: deptId }
     });
 
     res.status(200).json({
       success: true,
-      message: 'Staff member updated successfully',
+      message: 'Department updated successfully',
       data: {
-        staff: {
-          id: updatedStaff.id,
-          name: updatedStaff.fullName,
-          email: updatedStaff.email,
-          phone: updatedStaff.phone,
-          department: staffDept?.name || 'Unassigned',
-          role: updatedStaff.role.toLowerCase(),
-          status: updatedStaff.status || 'active',
-          createdAt: updatedStaff.createdAt,
-          updatedAt: updatedStaff.updatedAt
+        department: {
+          id: updatedDepartment.id,
+          name: updatedDepartment.name,
+          description: updatedDepartment.description,
+          memberCount,
+          createdAt: updatedDepartment.createdAt,
+          updatedAt: updatedDepartment.updatedAt
         }
       }
     });
   } catch (error) {
-    console.error('Error updating staff member:', error);
+    console.error('Error updating department:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update staff member',
+      message: 'Failed to update department',
       error: error.message
     });
   }
 };
 
-// Delete staff member
-exports.deleteStaff = async (req, res) => {
+// Delete department
+exports.deleteDepartment = async (req, res) => {
   try {
-    const staffId = req.params.id;
+    const deptId = req.params.id;
 
-    // Check if staff member exists
-    const staff = await prisma.user.findUnique({
-      where: { id: staffId }
+    // Check if department exists
+    const department = await prisma.staffDepartment.findUnique({
+      where: { id: deptId },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            complaints: true
+          }
+        }
+      }
     });
-    if (!staff) {
+    if (!department) {
       return res.status(404).json({
         success: false,
-        message: 'Staff member not found'
+        message: 'Department not found'
       });
     }
 
-    await prisma.user.delete({
-      where: { id: staffId }
+    // Check if department has users or complaints
+    if (department._count.users > 0 || department._count.complaints > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete department with active staff members or complaints'
+      });
+    }
+
+    await prisma.staffDepartment.delete({
+      where: { id: deptId }
     });
 
     res.status(200).json({
       success: true,
-      message: 'Staff member deleted successfully'
+      message: 'Department deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting staff member:', error);
+    console.error('Error deleting department:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete staff member',
+      message: 'Failed to delete department',
       error: error.message
     });
   }
 };
 
-// Get staff by department
-exports.getStaffByDepartment = async (req, res) => {
+// Get department members (staff users)
+exports.getDepartmentMembers = async (req, res) => {
   try {
-    const { department } = req.params;
+    const { departmentId } = req.params;
     
-    const staff = await prisma.user.findMany({
+    const members = await prisma.user.findMany({
       where: {
-        staffDepartment: {
-          name: department
+        staffDeptId: departmentId,
+        role: {
+          in: ['STAFF', 'ADMIN']
         }
       },
       include: {
@@ -309,9 +290,9 @@ exports.getStaffByDepartment = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Staff retrieved successfully',
+      message: 'Department members retrieved successfully',
       data: {
-        staff: staff.map(member => ({
+        members: members.map(member => ({
           id: member.id,
           name: member.fullName,
           email: member.email,
@@ -325,11 +306,19 @@ exports.getStaffByDepartment = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching staff by department:', error);
+    console.error('Error fetching department members:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch staff by department',
+      message: 'Failed to fetch department members',
       error: error.message
     });
   }
 };
+
+// Legacy methods for backward compatibility
+exports.getAllStaff = exports.getAllDepartments;
+exports.getStaffById = exports.getDepartmentById;
+exports.createStaff = exports.createDepartment;
+exports.updateStaff = exports.updateDepartment;
+exports.deleteStaff = exports.deleteDepartment;
+exports.getStaffByDepartment = exports.getDepartmentMembers;
