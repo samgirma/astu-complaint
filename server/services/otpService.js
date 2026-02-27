@@ -1,5 +1,8 @@
 const redis = require('redis');
 const crypto = require('crypto');
+const { sendOTPEmail: sendEmailOTP } = process.env.NODE_ENV === 'development' 
+  ? require('./mailerService.dev') 
+  : require('./mailerService');
 
 // Redis client setup
 const redisClient = redis.createClient({
@@ -138,41 +141,22 @@ const resetAttempts = async (email) => {
   }
 };
 
-// Send OTP via email (mock implementation - integrate with your email service)
+// Send OTP via email
 const sendOTPEmail = async (email, otp) => {
   try {
     console.log(`Sending OTP ${otp} to ${email}`);
     
-    // TODO: Integrate with your email service
-    // Example with nodemailer:
-    /*
-    const transporter = nodemailer.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+    // Use the real email service
+    const result = await sendEmailOTP(email, otp);
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: 'ASTU Complaint System - Email Verification',
-      text: `Your verification code is: ${otp}. This code will expire in 10 minutes.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Email Verification</h2>
-          <p style="color: #666;">Your verification code is:</p>
-          <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <span style="font-size: 24px; font-weight: bold; color: #007bff;">${otp}</span>
-          </div>
-          <p style="color: #999; font-size: 14px;">This code will expire in 10 minutes.</p>
-        </div>
-      `
-    });
-    */
+    if (result.success) {
+      console.log(`✅ OTP email sent successfully to ${email}`);
+      return true;
+    } else {
+      console.error(`❌ Failed to send OTP email to ${email}`);
+      return false;
+    }
     
-    return true;
   } catch (error) {
     console.error('Error sending OTP email:', error);
     return false;
