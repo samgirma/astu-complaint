@@ -26,8 +26,8 @@ const createStaffUserValidation = [
   body('departmentId')
     .notEmpty()
     .withMessage('Department is required')
-    .isUUID()
-    .withMessage('Invalid department ID'),
+    .isString()
+    .withMessage('Department ID must be a string'),
   body('role')
     .isIn(['staff', 'department_head', 'supervisor'])
     .withMessage('Please select a valid role'),
@@ -60,8 +60,8 @@ const updateStaffUserValidation = [
     .withMessage('Phone number cannot exceed 20 characters'),
   body('departmentId')
     .optional()
-    .isUUID()
-    .withMessage('Invalid department ID'),
+    .isString()
+    .withMessage('Department ID must be a string'),
   body('role')
     .optional()
     .isIn(['staff', 'department_head', 'supervisor'])
