@@ -11,30 +11,38 @@
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.js"
   },
-  "keywords": ["astu", "complaint", "tracking", "nodejs", "express", "postgresql"],
+  "keywords": [
+    "astu",
+    "complaint",
+    "tracking",
+    "nodejs",
+    "express",
+    "postgresql"
+  ],
   "author": "ASTU Development Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "dotenv": "^16.3.1",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "express-validator": "^7.0.1",
-    "express-rate-limit": "^7.1.5",
-    "multer": "^1.4.5-lts.1",
-    "cloudinary": "^1.41.0",
     "@google/generative-ai": "^0.2.1",
-    "prisma": "^5.7.1",
     "@prisma/client": "^5.7.1",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.41.0",
     "compression": "^1.7.4",
-    "express-async-errors": "^3.1.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
+    "prisma": "^5.7.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
     "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
     "supertest": "^6.3.3"
   },
   "engines": {

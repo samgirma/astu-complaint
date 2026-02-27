@@ -9,6 +9,7 @@ const path = require('path');
 
 const { connectDB } = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { scheduleWarningChecks } = require('./utils/scheduler');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -17,6 +18,7 @@ const adminRoutes = require('./routes/admin');
 const notificationRoutes = require('./routes/notifications');
 const staffRoutes = require('./routes/staff');
 const staffUsersRoutes = require('./routes/staffUsers');
+const warningsRoutes = require('./routes/warnings');
 
 // Create Express app
 const app = express();
@@ -116,6 +118,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin/staff', staffRoutes);
 app.use('/api/admin/staff-users', staffUsersRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/warnings', warningsRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -180,6 +183,9 @@ const startServer = async () => {
     if (!fs.existsSync('uploads')) {
       fs.mkdirSync('uploads');
     }
+
+    // Start automated warning checks
+    scheduleWarningChecks();
 
     // Start listening
     app.listen(PORT, () => {
