@@ -16,6 +16,7 @@ const complaintRoutes = require('./routes/complaints');
 const adminRoutes = require('./routes/admin');
 const notificationRoutes = require('./routes/notifications');
 const staffRoutes = require('./routes/staff');
+const staffUsersRoutes = require('./routes/staffUsers');
 
 // Create Express app
 const app = express();
@@ -113,6 +114,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/staff', staffRoutes);
+app.use('/api/admin/staff-users', staffUsersRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // API documentation endpoint
