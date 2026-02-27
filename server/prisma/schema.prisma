@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles enum
+enum UserRole {
+  STUDENT
+  STAFF
+  ADMIN
+}
+
+// Complaint status enum
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+// Notification type enum
+enum NotificationType {
+  NEW_COMPLAINT
+  STATUS_UPDATE
+  ADMIN_WARNING
+  APPROVAL_REQUEST
+}
+
+// Staff Departments table (managed by Admin)
+model StaffDepartment {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  users       User[]
+  complaints  Complaint[]
+
+  @@map("staff_departments")
+}
+
+// Users table with role-based access
+model User {
+  id           String       @id @default(cuid())
+  email         String       @unique
+  password      String
+  role          UserRole
+  fullName      String
+  staffDeptId   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  staffDepartment StaffDepartment? @relation(fields: [staffDeptId], references: [id])
+  createdComplaints Complaint[] @relation("StudentComplaints")
+  notifications   Notification[]
+  resolvedComplaints Complaint[] @relation("StaffResolvedComplaints")
+
+  @@map("users")
+}
+
+// Complaints table with workflow
+model Complaint {
+  id               String          @id @default(cuid())
+  body             String
+  studentId         String
+  staffDeptId       String
+  status           ComplaintStatus @default(OPEN)
+  issueDate        DateTime        @default(now())
+  resolvedAt       DateTime?
+  studentVerified   Boolean?        @default(false)
+  resolvedBy       String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  student          User            @relation("StudentComplaints", fields: [studentId], references: [id])
+  staffDepartment   StaffDepartment @relation(fields: [staffDeptId], references: [id])
+  resolver         User?           @relation("StaffResolvedComplaints", fields: [resolvedBy], references: [id])
+
+  @@map("complaints")
+}
+
+// Notifications table for all users
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  user      User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
