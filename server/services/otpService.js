@@ -1,0 +1,194 @@
+const redis = require('redis');
+const crypto = require('crypto');
+
+// Redis client setup
+const redisClient = redis.createClient({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: process.env.REDIS_PORT || 6379,
+  password: process.env.REDIS_PASSWORD || undefined
+});
+
+redisClient.on('error', (err) => {
+  console.error('Redis Client Error:', err);
+});
+
+redisClient.on('connect', () => {
+  console.log('Redis Client Connected');
+});
+
+// Connect to Redis
+redisClient.connect();
+
+// Generate 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Store OTP in Redis with 10-minute TTL
+const storeOTP = async (email, otp) => {
+  try {
+    const key = `otp:${email}`;
+    await redisClient.setEx(key, 600, otp); // 10 minutes = 600 seconds
+    console.log(`OTP stored for ${email}: ${otp}`);
+    return true;
+  } catch (error) {
+    console.error('Error storing OTP:', error);
+    return false;
+  }
+};
+
+// Verify OTP against Redis
+const verifyOTP = async (email, providedOTP) => {
+  try {
+    const key = `otp:${email}`;
+    const storedOTP = await redisClient.get(key);
+    
+    if (!storedOTP) {
+      return { success: false, message: 'OTP expired or not found' };
+    }
+    
+    if (storedOTP !== providedOTP) {
+      return { success: false, message: 'Invalid OTP' };
+    }
+    
+    // Delete OTP after successful verification
+    await redisClient.del(key);
+    return { success: true, message: 'OTP verified successfully' };
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    return { success: false, message: 'Verification failed' };
+  }
+};
+
+// Increment attempt counter with 24-hour TTL
+const incrementAttempts = async (email) => {
+  try {
+    const key = `attempts:${email}`;
+    const attempts = await redisClient.incr(key);
+    
+    // Set TTL to 24 hours (86400 seconds) only on first attempt
+    if (attempts === 1) {
+      await redisClient.expire(key, 86400);
+    }
+    
+    return attempts;
+  } catch (error) {
+    console.error('Error incrementing attempts:', error);
+    return 0;
+  }
+};
+
+// Check if user is blocked (exceeds 3 attempts)
+const isUserBlocked = async (email) => {
+  try {
+    const key = `attempts:${email}`;
+    const attempts = await redisClient.get(key);
+    return parseInt(attempts || 0) >= 3;
+  } catch (error) {
+    console.error('Error checking block status:', error);
+    return false;
+  }
+};
+
+// Get remaining attempts
+const getRemainingAttempts = async (email) => {
+  try {
+    const key = `attempts:${email}`;
+    const attempts = await redisClient.get(key);
+    return Math.max(0, 3 - parseInt(attempts || 0));
+  } catch (error) {
+    console.error('Error getting remaining attempts:', error);
+    return 3;
+  }
+};
+
+// Check resend cooldown (60 seconds)
+const canResendOTP = async (email) => {
+  try {
+    const key = `resend_cooldown:${email}`;
+    const canResend = await redisClient.get(key);
+    return !canResend; // Returns false if cooldown is active
+  } catch (error) {
+    console.error('Error checking resend cooldown:', error);
+    return true;
+  }
+};
+
+// Set resend cooldown for 60 seconds
+const setResendCooldown = async (email) => {
+  try {
+    const key = `resend_cooldown:${email}`;
+    await redisClient.setEx(key, 60, 'blocked'); // 60 seconds cooldown
+    return true;
+  } catch (error) {
+    console.error('Error setting resend cooldown:', error);
+    return false;
+  }
+};
+
+// Reset attempts counter (after successful verification)
+const resetAttempts = async (email) => {
+  try {
+    const key = `attempts:${email}`;
+    await redisClient.del(key);
+    return true;
+  } catch (error) {
+    console.error('Error resetting attempts:', error);
+    return false;
+  }
+};
+
+// Send OTP via email (mock implementation - integrate with your email service)
+const sendOTPEmail = async (email, otp) => {
+  try {
+    console.log(`Sending OTP ${otp} to ${email}`);
+    
+    // TODO: Integrate with your email service
+    // Example with nodemailer:
+    /*
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'ASTU Complaint System - Email Verification',
+      text: `Your verification code is: ${otp}. This code will expire in 10 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Email Verification</h2>
+          <p style="color: #666;">Your verification code is:</p>
+          <div style="background: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 24px; font-weight: bold; color: #007bff;">${otp}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">This code will expire in 10 minutes.</p>
+        </div>
+      `
+    });
+    */
+    
+    return true;
+  } catch (error) {
+    console.error('Error sending OTP email:', error);
+    return false;
+  }
+};
+
+module.exports = {
+  redisClient,
+  generateOTP,
+  storeOTP,
+  verifyOTP,
+  incrementAttempts,
+  isUserBlocked,
+  getRemainingAttempts,
+  canResendOTP,
+  setResendCooldown,
+  resetAttempts,
+  sendOTPEmail
+};

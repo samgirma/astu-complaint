@@ -19,6 +19,7 @@ const notificationRoutes = require('./routes/notifications');
 const staffRoutes = require('./routes/staff');
 const staffUsersRoutes = require('./routes/staffUsers');
 const warningsRoutes = require('./routes/warnings');
+const otpRoutes = require('./routes/otp');
 
 // Create Express app
 const app = express();
@@ -113,6 +114,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/otp', otpRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/staff', staffRoutes);
