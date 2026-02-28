@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../config/database');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { quickEmailValidation } = require('../services/emailVerificationService');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -11,6 +12,15 @@ const generateToken = (userId) => {
 // Student registration
 const registerStudent = asyncHandler(async (req, res) => {
   const { email, password, fullName } = req.body;
+
+  // Additional email validation for security
+  const emailValidation = await quickEmailValidation(email);
+  if (!emailValidation.valid) {
+    return res.status(400).json({
+      success: false,
+      message: emailValidation.reason
+    });
+  }
 
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
@@ -94,6 +104,21 @@ const login = asyncHandler(async (req, res) => {
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password'
+    });
+  }
+
+  // Check user status
+  if (user.status === 'suspended') {
+    return res.status(403).json({
+      success: false,
+      message: 'Your account has been suspended. Please contact the administrator for assistance.'
+    });
+  }
+
+  if (user.status === 'inactive') {
+    return res.status(403).json({
+      success: false,
+      message: 'Your account is currently inactive. Please contact the administrator to activate your account.'
     });
   }
 

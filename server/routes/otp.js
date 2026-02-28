@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { generateOTP, storeOTP, verifyOTP, incrementAttempts, isUserBlocked, getRemainingAttempts, canResendOTP, setResendCooldown, resetAttempts, sendOTPEmail } = require('../services/otpService');
+const { strictEmailValidation } = require('../services/emailVerificationService');
 
 const router = express.Router();
 
@@ -22,6 +23,21 @@ router.post('/send-otp', [
     }
 
     const { email } = req.body;
+
+    // Step A & B: Strict email validation (Domain + Deep validation)
+    console.log(`🔍 Starting strict email validation for: ${email}`);
+    const emailValidation = await strictEmailValidation(email);
+    
+    if (!emailValidation.valid) {
+      console.log(`❌ Email validation failed: ${emailValidation.reason}`);
+      return res.status(400).json({
+        success: false,
+        message: emailValidation.reason,
+        code: emailValidation.code
+      });
+    }
+    
+    console.log(`✅ Email validation passed: ${email}`);
 
     // Check if user is blocked
     const blocked = await isUserBlocked(email);

@@ -1,6 +1,11 @@
 const { PrismaClient } = require('@prisma/client');
 require('express-async-errors');
 
+// Handle BigInt serialization
+BigInt.prototype.toJSON = function() {
+  return this.toString();
+};
+
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
 });
