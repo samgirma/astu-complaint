@@ -44,6 +44,7 @@ async function main() {
 
   console.log('Database seeding completed!');
   console.log(`Admin user created: ${adminEmail} / ${adminPassword}`);
+
 }
 
 main()

@@ -1,25 +1,40 @@
 const nodemailer = require('nodemailer');
 
-// Create the Transporter
+// Validate SMTP credentials on startup
+const requiredEnvVars = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('❌ Missing SMTP Credentials. Required environment variables:', missingVars.join(', '));
+  console.error('Please set these variables in your .env file and restart the server.');
+  process.exit(1);
+}
+
+// Create the Transporter with proper TLS configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
+  port: 587, // Explicitly set to 587
   secure: false, // Use TLS (Port 587)
+  tls: {
+    rejectUnauthorized: false // Prevent local network handshake refusals
+  },
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
 
-// Verify transporter connection
+// Verify transporter connection on startup
 const verifyTransporter = async () => {
   try {
     await transporter.verify();
     console.log('✅ SMTP transporter is ready to send emails');
+    console.log(`📧 Using SMTP host: ${process.env.SMTP_HOST}:${587}`);
     return true;
   } catch (error) {
     console.error('❌ SMTP transporter verification failed:', error);
-    return false;
+    console.error('Please check your SMTP credentials and network connection.');
+    throw error; // Throw real error instead of returning false
   }
 };
 
@@ -210,9 +225,6 @@ const sendPasswordResetEmail = async (email, resetToken) => {
     throw error;
   }
 };
-
-// Initialize transporter on module load
-verifyTransporter();
 
 module.exports = {
   transporter,

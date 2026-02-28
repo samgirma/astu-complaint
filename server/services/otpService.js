@@ -1,8 +1,6 @@
 const redis = require('redis');
 const crypto = require('crypto');
-const { sendOTPEmail: sendEmailOTP } = process.env.NODE_ENV === 'development' 
-  ? require('./mailerService.dev') 
-  : require('./mailerService');
+const { sendOTPEmail: sendEmailOTP } = require('./mailerService');
 
 // Redis client setup
 const redisClient = redis.createClient({

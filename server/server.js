@@ -10,6 +10,7 @@ const path = require('path');
 const { connectDB } = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { scheduleWarningChecks } = require('./utils/scheduler');
+const { verifyTransporter } = require('./services/mailerService');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -20,6 +21,9 @@ const staffRoutes = require('./routes/staff');
 const staffUsersRoutes = require('./routes/staffUsers');
 const warningsRoutes = require('./routes/warnings');
 const otpRoutes = require('./routes/otp');
+const aiRoutes = require('./routes/ai');
+const userRoutes = require('./routes/users');
+const studentRoutes = require('./routes/students');
 
 // Create Express app
 const app = express();
@@ -119,8 +123,11 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/staff', staffRoutes);
 app.use('/api/admin/staff-users', staffUsersRoutes);
+app.use('/api/admin/students', studentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/warnings', warningsRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/users', userRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -179,6 +186,10 @@ const startServer = async () => {
   try {
     // Connect to database
     await connectDB();
+    
+    // Verify SMTP connection before starting server
+    console.log('🔧 Verifying SMTP connection...');
+    await verifyTransporter();
     
     // Create uploads directory if it doesn't exist
     const fs = require('fs');
