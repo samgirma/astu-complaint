@@ -240,14 +240,17 @@ const startServer = async () => {
 
 startServer();
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  process.exit(1);
+// Enhanced error logging for production
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('==> ❌ UNHANDLED REJECTION:', reason);
+  // Optional: keep process alive to inspect logs, or exit after a delay
+  setTimeout(() => process.exit(1), 2000); 
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  process.exit(1);
+  console.error('==> ❌ UNCAUGHT EXCEPTION:', err.message);
+  console.error(err.stack);
+  setTimeout(() => process.exit(1), 2000);
 });
 
 // Graceful shutdown
