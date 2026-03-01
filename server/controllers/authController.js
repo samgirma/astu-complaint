@@ -1,13 +1,16 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { prisma } = require('../config/database');
+const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { sendPasswordResetEmail } = require('../services/mailerService');
+const { generatePasswordResetToken } = require('../utils/tokenUtils');
 const { quickEmailValidation } = require('../services/emailVerificationService');
+const { sendNotificationToAdmins } = require('../utils/notificationService');
+const { validatePassword } = require('../services/passwordValidationService');
 
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-};
+// Shared Prisma client instance
+const prisma = new PrismaClient();
 
 // Student registration
 const registerStudent = asyncHandler(async (req, res) => {
@@ -22,6 +25,16 @@ const registerStudent = asyncHandler(async (req, res) => {
     });
   }
 
+  // Strong password validation
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password does not meet security requirements',
+      requirements: passwordValidation.requirements
+    });
+  }
+
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
     where: { email }
@@ -30,7 +43,7 @@ const registerStudent = asyncHandler(async (req, res) => {
   if (existingUser) {
     return res.status(400).json({
       success: false,
-      message: 'User with this email already exists'
+      message: 'There is already a registered user with that email'
     });
   }
 
@@ -55,10 +68,14 @@ const registerStudent = asyncHandler(async (req, res) => {
     }
   });
 
-  // Generate token
-  const token = generateToken(user.id);
+  // Generate JWT token
+  const token = jwt.sign(
+    { userId: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
 
-  // Create welcome notification
+  // Create welcome notification for user
   await prisma.notification.create({
     data: {
       userId: user.id,
@@ -66,6 +83,13 @@ const registerStudent = asyncHandler(async (req, res) => {
       title: 'Welcome to ASTU Complaint System',
       message: 'Your account has been created successfully. You can now submit complaints.'
     }
+  });
+
+  // Send notification to all admin users about new registration
+  await sendNotificationToAdmins({
+    title: 'New Student Registration',
+    message: `New student ${fullName} (${email}) has registered successfully.`,
+    type: 'NEW_COMPLAINT'
   });
 
   res.status(201).json({
@@ -122,8 +146,12 @@ const login = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate token
-  const token = generateToken(user.id);
+  // Generate JWT token
+  const token = jwt.sign(
+    { userId: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+  );
 
   // Remove password from response
   const { password: _, ...userWithoutPassword } = user;
@@ -133,7 +161,8 @@ const login = asyncHandler(async (req, res) => {
     message: 'Login successful',
     data: {
       user: userWithoutPassword,
-      token
+      token,
+      requiresPasswordChange: user.role === 'STAFF' && !user.passwordChanged
     }
   });
 });
@@ -200,7 +229,7 @@ const createStaff = asyncHandler(async (req, res) => {
   if (existingUser) {
     return res.status(400).json({
       success: false,
-      message: 'User with this email already exists'
+      message: 'There is already a registered user with that email'
     });
   }
 
@@ -261,6 +290,18 @@ const createAdmin = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Admin user already exists'
+    });
+  }
+
+  // Check if user with this email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email }
+  });
+
+  if (existingUser) {
+    return res.status(400).json({
+      success: false,
+      message: 'There is already a registered user with that email'
     });
   }
 
@@ -347,11 +388,254 @@ const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
+// Check if user exists and return profile info for confirmation
+const checkUserForPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Validate email structure
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        profilePicture: true,
+        role: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address'
+      });
+    }
+
+    // Generate user initials for profile display
+    const initials = user.fullName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+
+    // Return user profile info for confirmation
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        initials: initials,
+        role: user.role
+      },
+      message: 'User found. Please confirm to send password reset email.'
+    });
+
+  } catch (error) {
+    console.error('Check user for password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check user account'
+    });
+  }
+});
+
+// Forgot password - send reset link to email (after user confirmation)
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email, userId } = req.body;
+
+  try {
+    // Validate email structure
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    // Find user and verify it matches the confirmed user ID
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        staffDepartment: true
+      }
+    });
+
+    if (!user || user.id !== userId) {
+      return res.status(404).json({
+        success: false,
+        message: 'User account not found'
+      });
+    }
+
+    // Generate password reset token
+    const { token, expiresAt } = generatePasswordResetToken(user.id);
+
+    // Save token to database
+    await prisma.passwordResetToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt
+      }
+    });
+
+    // Send reset email
+    await sendPasswordResetEmail(email, user.fullName, token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset instructions have been sent to your email'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send password reset email'
+    });
+  }
+});
+
+// Verify reset token
+const verifyResetToken = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+
+  try {
+    // Find valid token
+    const resetToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        token,
+        used: false,
+        expiresAt: {
+          gt: new Date()
+        }
+      }
+    });
+
+    if (!resetToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Get user info
+    const user = await prisma.user.findUnique({
+      where: { id: resetToken.userId }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        email: user.email,
+        message: 'Token is valid'
+      }
+    });
+
+  } catch (error) {
+    console.error('Verify reset token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify reset token'
+    });
+  }
+});
+
+// Reset password with valid token
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    // Find and validate token
+    const resetToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        token,
+        used: false,
+        expiresAt: {
+          gt: new Date()
+        }
+      }
+    });
+
+    if (!resetToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password does not meet security requirements',
+        requirements: passwordValidation.requirements
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update user password
+    await prisma.user.update({
+      where: { id: resetToken.userId },
+      data: {
+        password: hashedPassword,
+        passwordChanged: true // Mark that user has changed password
+      }
+    });
+
+    // Mark token as used
+    await prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+});
+
 module.exports = {
   registerStudent,
   login,
   getProfile,
   createStaff,
   createAdmin,
-  changePassword
+  changePassword,
+  checkUserForPasswordReset,
+  forgotPassword,
+  verifyResetToken,
+  resetPassword
 };

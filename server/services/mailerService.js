@@ -175,8 +175,10 @@ const sendWelcomeEmail = async (email, fullName) => {
 };
 
 // Send password reset email
-const sendPasswordResetEmail = async (email, resetToken) => {
+const sendPasswordResetEmail = async (email, fullName, resetToken) => {
   try {
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
+    
     const mailOptions = {
       from: `"ASTU Support" <${process.env.EMAIL_FROM}>`,
       to: email,
@@ -189,11 +191,12 @@ const sendPasswordResetEmail = async (email, resetToken) => {
             
             <h2 style="color: #374151; font-size: 24px; margin-bottom: 15px;">Reset Your Password</h2>
             <p style="color: #6b7280; font-size: 16px; margin-bottom: 30px; line-height: 1.5;">
+              Hello ${fullName},<br><br>
               We received a request to reset your password. Click the button below to create a new password. This link will expire in 1 hour.
             </p>
             
             <div style="margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL}/reset-password?token=${resetToken}" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              <a href="${resetUrl}" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                 Reset Password
               </a>
             </div>

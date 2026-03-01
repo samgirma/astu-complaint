@@ -58,6 +58,7 @@ model User {
   phone         String?
   profilePicture String?      // Cloudinary URL for profile picture
   status        String?        @default("active")
+  passwordChanged Boolean?      @default(false) // Track if user has changed default password
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -90,6 +91,18 @@ model Complaint {
   resolver         User?           @relation("StaffResolvedComplaints", fields: [resolvedBy], references: [id])
 
   @@map("complaints")
+}
+
+// Password reset tokens table
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean   @default(false)
+
+  @@map("password_reset_tokens")
 }
 
 // Notifications table for all users

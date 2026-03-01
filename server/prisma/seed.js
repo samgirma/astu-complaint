@@ -27,7 +27,7 @@ async function main() {
 
   // Create admin user
   console.log('Creating admin user...');
-  const adminEmail = 'admin@astu.edu.et';
+  const adminEmail = 'admin.user@astu.edu.et';
   const adminPassword = 'admin123456';
   const hashedPassword = await bcrypt.hash(adminPassword, 12);
 

@@ -405,6 +405,25 @@ const getAnalytics = asyncHandler(async (req, res) => {
     }
   });
 
+  // Get individual complaints for the dashboard
+  const individualComplaints = await prisma.complaint.findMany({
+    take: 50, // Limit to recent 50 complaints
+    orderBy: { createdAt: 'desc' },
+    include: {
+      student: {
+        select: {
+          fullName: true,
+          email: true
+        }
+      },
+      staffDepartment: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+
   const analytics = {
     overview: {
       totalUsers,
@@ -431,6 +450,16 @@ const getAnalytics = asyncHandler(async (req, res) => {
       name: dept.name,
       totalComplaints: dept._count.complaints,
       staffCount: dept._count.users
+    })),
+    individualComplaints: individualComplaints.map(complaint => ({
+      id: complaint.id,
+      studentName: complaint.student.fullName,
+      department: complaint.staffDepartment.name,
+      status: complaint.status.toLowerCase(),
+      submittedDate: complaint.createdAt.toISOString().split('T')[0],
+      description: complaint.body,
+      priority: 'medium', // Default priority since it's not in schema
+      category: complaint.staffDepartment.name
     }))
   };
 

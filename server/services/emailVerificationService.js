@@ -1,16 +1,17 @@
 const { validate: validateEmailDeep } = require('deep-email-validator');
+const dns = require('dns').promises;
 
 /**
  * Strict email validation for ASTU student registration
  * Step A: Regex check for @astu.edu.et
- * Step B: Deep validation (Format, MX Records, SMTP check)
+ * Step B: For ASTU emails, use MX validation instead of SMTP (more reliable for institutional emails)
  */
 const strictEmailValidation = async (email) => {
   try {
     console.log(`🔍 Starting strict email validation for: ${email}`);
     
-    // Step A: Regex check for @astu.edu.et domain
-    if (!email.endsWith('@astu.edu.et')) {
+    // Step A: Regex check for @astu.edu.et or @astust.edu.et domain
+    if (!email.endsWith('@astu.edu.et') && !email.endsWith('@astust.edu.et')) {
       return {
         valid: false,
         reason: 'Only ASTU institutional emails are allowed',
@@ -18,55 +19,53 @@ const strictEmailValidation = async (email) => {
       };
     }
     
-    console.log(`✅ Step A passed: Email ends with @astu.edu.et`);
+    console.log(`✅ Step A passed: Email ends with @astu.edu.et or @astust.edu.et`);
     
-    // Step B: Deep validation using deep-email-validator
-    console.log(`🔍 Step B: Performing deep email validation...`);
+    // Step B: For ASTU emails, use MX record validation instead of SMTP
+    // Institutional email servers often block SMTP verification attempts
+    console.log(`🔍 Step B: Performing MX record validation for ASTU email...`);
     
-    const validation = await validateEmailDeep(email);
+    const domain = email.split('@')[1];
     
-    if (!validation.valid) {
-      console.log(`❌ Step B failed: ${validation.reason}`);
+    try {
+      const mxRecords = await dns.resolveMx(domain);
       
-      // Map common errors to user-friendly messages
-      let errorMessage = 'Invalid email address';
+      if (!mxRecords || mxRecords.length === 0) {
+        console.log(`❌ Step B failed: No MX records found for ${domain}`);
+        return {
+          valid: false,
+          reason: 'Domain does not have valid mail servers',
+          code: 'DOMAIN_NO_MX'
+        };
+      }
       
-      if (validation.reason) {
-        if (validation.reason.includes('format')) {
-          errorMessage = 'Invalid email format';
-        } else if (validation.reason.includes('domain')) {
-          errorMessage = 'Domain does not exist';
-        } else if (validation.reason.includes('mx') || validation.reason.includes('MX')) {
-          errorMessage = 'Domain does not have valid mail servers';
-        } else if (validation.reason.includes('smtp') || validation.reason.includes('mailbox') || validation.reason.includes('typo')) {
-          errorMessage = "The email doesn't exist. Check your email for any typo";
-        } else {
-          errorMessage = validation.reason;
-        }
+      console.log(`✅ Step B passed: Found ${mxRecords.length} MX records for ${domain}`);
+      
+      // Additional format validation for ASTU emails
+      const astuPattern = /^[a-zA-Z]+\.[a-zA-Z]+@(astu|astust)\.edu\.et$/;
+      if (!astuPattern.test(email)) {
+        return {
+          valid: false,
+          reason: 'Email must be in format: firstname.lastname@astu.edu.et or firstname.lastname@astust.edu.et',
+          code: 'INVALID_ASTU_FORMAT'
+        };
       }
       
       return {
+        valid: true,
+        reason: 'Email address is valid and can receive emails',
+        code: 'VALID',
+        validationMethod: 'MX_RECORDS'
+      };
+      
+    } catch (dnsError) {
+      console.log(`❌ Step B failed: DNS lookup error - ${dnsError.message}`);
+      return {
         valid: false,
-        reason: errorMessage,
-        code: 'DEEP_VALIDATION_FAILED',
-        details: validation
+        reason: 'Unable to verify email domain. Please try again.',
+        code: 'DNS_ERROR'
       };
     }
-    
-    console.log(`✅ Step B passed: Deep validation successful`);
-    console.log(`📧 Validation details:`, {
-      format: validation.format?.valid,
-      mx: validation.mx?.valid,
-      smtp: validation.smtp?.valid,
-      reason: validation.reason
-    });
-    
-    return {
-      valid: true,
-      reason: 'Email address is valid and can receive emails',
-      code: 'VALID',
-      details: validation
-    };
     
   } catch (error) {
     console.error('❌ Strict email validation error:', error);
@@ -84,7 +83,7 @@ const strictEmailValidation = async (email) => {
 const quickEmailValidation = async (email) => {
   try {
     // Basic format validation
-    if (!email.endsWith('@astu.edu.et')) {
+    if (!email.endsWith('@astu.edu.et') && !email.endsWith('@astust.edu.et')) {
       return {
         valid: false,
         reason: 'Only ASTU institutional emails are allowed',
@@ -93,11 +92,11 @@ const quickEmailValidation = async (email) => {
     }
 
     // Basic format check for ASTU emails
-    const astuPattern = /^[a-zA-Z]+\.[a-zA-Z]+@astu\.edu\.et$/;
+    const astuPattern = /^[a-zA-Z]+\.[a-zA-Z]+@(astu|astust)\.edu\.et$/;
     if (!astuPattern.test(email)) {
       return {
         valid: false,
-        reason: 'Email must be in format: firstname.lastname@astu.edu.et',
+        reason: 'Email must be in format: firstname.lastname@astu.edu.et or firstname.lastname@astust.edu.et',
         code: 'INVALID_ASTU_FORMAT'
       };
     }

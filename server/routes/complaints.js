@@ -1,6 +1,27 @@
 const express = require('express');
 const { body, query } = require('express-validator');
+const multer = require('multer');
 const router = express.Router();
+
+// Multer configuration for complaint file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
+    const extname = allowedTypes.test(require('path').extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, PDF, DOC, DOCX, and TXT files are allowed.'));
+    }
+  }
+});
 
 // Import controllers and middleware
 const {
@@ -63,7 +84,7 @@ const paginationValidation = [
 // Public routes (none - all complaints require authentication)
 
 // Protected routes
-router.post('/', authenticateToken, checkRole(['STUDENT']), createComplaintValidation, createComplaint);
+router.post('/', authenticateToken, checkRole(['STUDENT']), upload.array('files', 5), createComplaint);
 router.get('/', authenticateToken, paginationValidation, getComplaints);
 router.get('/departments', authenticateToken, getDepartments);
 router.get('/stats', authenticateToken, getComplaintStats);

@@ -4,7 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // Email validation regex for ASTU emails
-const ASTU_EMAIL_REGEX = /^[a-zA-Z]+\.[a-zA-Z]+@astu\.edu\.et$/;
+const ASTU_EMAIL_REGEX = /^[a-zA-Z]+\.[a-zA-Z]+@(astu|astust)\.edu\.et$/;
 
 // Middleware to authenticate JWT token
 const authenticateToken = async (req, res, next) => {

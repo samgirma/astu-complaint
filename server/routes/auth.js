@@ -9,7 +9,11 @@ const {
   getProfile,
   createStaff,
   createAdmin,
-  changePassword
+  changePassword,
+  checkUserForPasswordReset,
+  forgotPassword,
+  verifyResetToken,
+  resetPassword
 } = require('../controllers/authController');
 
 const {
@@ -23,11 +27,19 @@ const registerValidation = [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email')
-    .matches(/^[a-zA-Z]+\.[a-zA-Z]+@astu\.edu\.et$/)
-    .withMessage('Email must be in format: firstname.lastname@astu.edu.et'),
+    .matches(/^[a-zA-Z]+\.[a-zA-Z]+@(astu|astust)\.edu\.et$/)
+    .withMessage('Email must be in format: firstname.lastname@astu.edu.et or firstname.lastname@astust.edu.et'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .custom((value) => {
+      const { validatePassword } = require('../services/passwordValidationService');
+      const validation = validatePassword(value);
+      if (!validation.isValid) {
+        throw new Error('Password does not meet security requirements');
+      }
+      return true;
+    }),
   body('fullName')
     .notEmpty()
     .withMessage('Full name is required')
@@ -84,6 +96,10 @@ const changePasswordValidation = [
 // Public routes
 router.post('/register', registerValidation, validateASTUEmail, registerStudent);
 router.post('/login', loginValidation, login);
+router.post('/check-user-for-password-reset', checkUserForPasswordReset);
+router.post('/forgot-password', forgotPassword);
+router.get('/verify-reset-token', verifyResetToken);
+router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.get('/profile', authenticateToken, getProfile);

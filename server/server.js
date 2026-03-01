@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 const path = require('path');
 
 const { connectDB } = require('./config/database');
@@ -24,6 +25,7 @@ const otpRoutes = require('./routes/otp');
 const aiRoutes = require('./routes/ai');
 const userRoutes = require('./routes/users');
 const studentRoutes = require('./routes/students');
+const passwordRoutes = require('./routes/password');
 
 // Create Express app
 const app = express();
@@ -102,6 +104,26 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Multer configuration for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, PDF, DOC, DOCX, and TXT files are allowed.'));
+    }
+  }
+});
+
 // Static file serving for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -128,6 +150,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/warnings', warningsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/password', passwordRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {

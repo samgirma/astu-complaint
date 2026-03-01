@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
+const { generateTemporaryPassword } = require('../services/passwordGeneratorService');
 
 const prisma = new PrismaClient();
 
@@ -9,9 +10,7 @@ exports.getAllStaffUsers = async (req, res) => {
   try {
     const staffUsers = await prisma.user.findMany({
       where: {
-        role: {
-          in: ['STAFF', 'ADMIN']
-        }
+        role: 'STAFF'
       },
       include: {
         staffDepartment: true
@@ -106,7 +105,11 @@ exports.createStaffUser = async (req, res) => {
       });
     }
 
-    const { name, email, phone, departmentId, role, status, password } = req.body;
+    const { name, email, phone, departmentId, role, status } = req.body;
+
+    // Generate temporary password
+    const temporaryPassword = generateTemporaryPassword();
+    console.log(`Generated temporary password for ${email}: ${temporaryPassword}`);
 
     // Check if user already exists with this email
     const existingUser = await prisma.user.findUnique({
@@ -132,9 +135,9 @@ exports.createStaffUser = async (req, res) => {
       }
     }
 
-    // Hash password
+    // Hash temporary password
     const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, saltRounds);
 
     const newStaffUser = await prisma.user.create({
       data: {
@@ -144,12 +147,24 @@ exports.createStaffUser = async (req, res) => {
         staffDeptId: departmentId,
         role: role.toUpperCase(),
         status: status || 'active',
-        password: hashedPassword
+        password: hashedPassword,
+        passwordChanged: false // Flag to indicate password needs to be changed
       }
     });
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newStaffUser;
+
+    // Create notification for the admin who created the staff user
+    await prisma.notification.create({
+      data: {
+        userId: req.user.id, // The admin who created the staff user
+        type: 'ADMIN_WARNING', // Using existing type for admin notifications
+        title: 'Staff User Created Successfully',
+        message: `New staff user ${name} has been created. Email: ${email}, Temporary Password: ${temporaryPassword}. Please share these credentials with the staff member.`,
+        isRead: false
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -165,7 +180,8 @@ exports.createStaffUser = async (req, res) => {
           status: userWithoutPassword.status || 'active',
           createdAt: userWithoutPassword.createdAt,
           updatedAt: userWithoutPassword.updatedAt
-        }
+        },
+        temporaryPassword: temporaryPassword // Include temporary password in response
       }
     });
   } catch (error) {
@@ -347,9 +363,7 @@ exports.getStaffUsersByDepartment = async (req, res) => {
     const staffUsers = await prisma.user.findMany({
       where: {
         staffDeptId: departmentId,
-        role: {
-          in: ['STAFF', 'ADMIN']
-        }
+        role: 'STAFF'
       },
       include: {
         staffDepartment: true

@@ -2,8 +2,15 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { prisma } = require('../config/database');
 const { asyncHandler } = require('../middleware/errorHandler');
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini AI lazily - only when actually needed
+let genAI = null;
+
+const getGenAI = () => {
+  if (!genAI && process.env.GEMINI_API_KEY) {
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  return genAI;
+};
 
 // AI Chat Endpoint
 const chatWithAI = asyncHandler(async (req, res) => {
@@ -68,7 +75,7 @@ User Message: ${message}
 Please provide a helpful response:`;
 
     // Get the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = getGenAI().getGenerativeModel({ model: "gemini-pro" });
 
     // Generate response
     const result = await model.generateContent(contextPrompt);
@@ -201,7 +208,7 @@ Provide 4-5 specific, actionable suggestions for:
 
 Keep suggestions concise and practical for an ASTU student.`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = getGenAI().getGenerativeModel({ model: "gemini-pro" });
     const result = await model.generateContent(prompt);
     const response = result.response;
     const aiResponse = response.text();

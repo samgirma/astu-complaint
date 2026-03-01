@@ -2,6 +2,55 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+// Send notification to all admin users
+const sendNotificationToAdmins = async ({ title, message, type = 'NEW_COMPLAINT' }) => {
+  try {
+    // Get all admin users
+    const adminUsers = await prisma.user.findMany({
+      where: {
+        role: 'ADMIN',
+        status: 'active'
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true
+      }
+    });
+
+    if (adminUsers.length === 0) {
+      console.log('No active admin users found');
+      return;
+    }
+
+    // Create notifications for all admin users
+    const notifications = adminUsers.map(user => ({
+      userId: user.id,
+      type,
+      title,
+      message,
+      isRead: false
+    }));
+
+    await prisma.notification.createMany({
+      data: notifications
+    });
+
+    console.log(`Created ${notifications.length} admin notifications: ${title}`);
+    
+    return {
+      success: true,
+      recipientsCount: adminUsers.length,
+      title
+    };
+    
+  } catch (error) {
+    console.error('Error sending notification to admins:', error);
+    throw error;
+  }
+};
+
 // Send warning to staff members in a department
 const sendWarningToStaff = async ({ title, message, targetDepartment, type }) => {
   try {
@@ -148,6 +197,7 @@ const getUnreadNotificationCount = async (userId) => {
 };
 
 module.exports = {
+  sendNotificationToAdmins,
   sendWarningToStaff,
   getUserNotifications,
   markNotificationAsRead,

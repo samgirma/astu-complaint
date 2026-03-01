@@ -3,7 +3,10 @@ const { asyncHandler } = require('../middleware/errorHandler');
 
 // Create complaint (Student only)
 const createComplaint = asyncHandler(async (req, res) => {
-  const { body, staffDeptId } = req.body;
+  // Extract data from FormData
+  const body = req.body.body;
+  const staffDeptId = req.body.staffDeptId;
+  const files = req.files || [];
   const studentId = req.user.id;
 
   // Verify user is a student
@@ -11,6 +14,21 @@ const createComplaint = asyncHandler(async (req, res) => {
     return res.status(403).json({
       success: false,
       message: 'Only students can create complaints'
+    });
+  }
+
+  // Validate required fields
+  if (!body) {
+    return res.status(400).json({
+      success: false,
+      message: 'Complaint body is required'
+    });
+  }
+
+  if (!staffDeptId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Department selection is required'
     });
   }
 

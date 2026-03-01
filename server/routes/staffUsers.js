@@ -34,10 +34,8 @@ const createStaffUserValidation = [
   body('status')
     .optional()
     .isIn(['active', 'inactive'])
-    .withMessage('Please select a valid status'),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
+    .withMessage('Please select a valid status')
+  // Password is now auto-generated, no longer required in request
 ];
 
 const updateStaffUserValidation = [
