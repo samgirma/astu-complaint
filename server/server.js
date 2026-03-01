@@ -52,19 +52,30 @@ if (process.env.NODE_ENV === 'production') {
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? [
-          'https://astu-complient.firatech.systems',
-          "https://astu-complaint-frontendd.onrender.com", // Add your Render URL here
-          process.env.FRONTEND_URL                // Dynamic fallback
-        ]
-      : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:8080'];
-    
+    // 1. Define base origins
+    const prodOrigins = [
+      'https://astu-complient.firatech.systems',
+      'https://astu-complaint-frontendd.onrender.com',
+      process.env.FRONTEND_URL
+    ].filter(Boolean); // 
+
+    const devOrigins = [
+      'http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173',
+      'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:8080'
+    ];
+
+    const allowedOrigins = process.env.NODE_ENV === 'production' ? prodOrigins : devOrigins;
+
+    // 2. Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
+
+    // 3. Check origin (with a fix for trailing slashes)
+    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
+      console.error(`❌ CORS Blocked for origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
