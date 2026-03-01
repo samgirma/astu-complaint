@@ -125,7 +125,40 @@ docs/
 
 ---
 
-## 🚀 **Quick Start**
+## � **Recent Updates & Fixes**
+
+### 🐳 **Docker Configuration Fixes**
+- ✅ **Redis Password Handling**: Fixed `requirepass` command errors with conditional configuration
+- ✅ **PostgreSQL Defaults**: Added automatic fallback for missing database credentials
+- ✅ **Frontend Dockerfile**: Fixed nginx user conflicts by using `appuser` instead of `nginx`
+- ✅ **Environment Loading**: Scripts now provide automatic defaults for critical variables
+
+### 🗄️ **Database Initialization Fixes**
+- ✅ **PostgreSQL Syntax**: Fixed `CREATE TYPE IF NOT EXISTS` errors in init.sql
+- ✅ **Prisma Binary Targets**: Added `debian-openssl-1.1.x` compatibility for Docker
+- ✅ **Database Setup Script**: New `./scripts/setup-db.sh` for complete database initialization
+- ✅ **Migration Handling**: Automatic migration deployment and seeding
+
+### 🔧 **Enhanced Scripts**
+- ✅ **Environment Validation**: Scripts verify and display loaded variables
+- ✅ **Graceful Fallbacks**: Automatic defaults for missing environment variables
+- ✅ **Better Error Messages**: Clear, actionable error reporting
+- ✅ **Container Management**: Automatic container startup and health checks
+
+### 🎨 **UI Improvements**
+- ✅ **Glassmorphism OTP**: Enhanced OTP verification with modern UI effects
+- ✅ **Countdown Timer**: 60-second OTP resend timer with visual feedback
+- ✅ **Attempt Warnings**: Clear feedback for remaining OTP attempts
+- ✅ **Responsive Design**: Improved mobile and desktop compatibility
+
+### 📚 **Documentation**
+- ✅ **Comprehensive Docs**: Complete `/docs` folder with architecture, security, and deployment guides
+- ✅ **Professional README**: Enhanced with badges, visual elements, and clear instructions
+- ✅ **Script Documentation**: Detailed usage instructions for all utility scripts
+
+---
+
+## � **Quick Start**
 
 ### 📋 **Prerequisites**
 
@@ -140,23 +173,107 @@ docs/
 git clone https://github.com/astu/complaint-system.git
 cd complaint-system
 
-# Configure environment
-cp .env.production server/.env
-# Edit server/.env with your credentials
+# Step 1: Setup environment
+cp server/.env.docker server/.env
+# Edit server/.env with your actual credentials
 
-# Launch with Docker Compose
-docker compose up --build
+# Step 2: Setup database (IMPORTANT!)
+./scripts/setup-db.sh
+
+# Step 3: Launch application
+./scripts/run-dev.sh    # Development environment
+# OR
+./scripts/run-test.sh   # Production test mode
 
 # 🎉 Access your system at http://localhost
 ```
 
-### 🔧 **Development Mode**
+### 🔧 **Important Setup Instructions**
 
+#### **Environment Configuration**
 ```bash
-# Use our custom scripts
-./scripts/run-dev.sh    # Development environment
-./scripts/run-test.sh   # Production test mode
+# Copy the Docker-ready environment template
+cp server/.env.docker server/.env
+
+# Required variables to update:
+# - SMTP_HOST, SMTP_USER, SMTP_PASS (Brevo email service)
+# - GEMINI_API_KEY (Google AI)
+# - CLOUDINARY_* (file uploads)
+# - FRONTEND_URL (your domain)
 ```
+
+#### **Database Setup (Required)**
+```bash
+# ALWAYS run this first before starting the application
+./scripts/setup-db.sh
+
+# This script handles:
+# ✅ Environment variable loading
+# ✅ Container startup (PostgreSQL & Redis)
+# ✅ Database migrations
+# ✅ Initial data seeding
+# ✅ Connection verification
+```
+
+#### **Application Startup**
+```bash
+# Development Mode (recommended for testing)
+./scripts/run-dev.sh
+
+# Production Test Mode
+./scripts/run-test.sh
+```
+
+### 🚨 **Troubleshooting Common Issues**
+
+#### **Database Connection Errors**
+```bash
+# If you see "Prisma Client could not locate the Query Engine":
+# 1. Run: ./scripts/setup-db.sh
+# 2. Restart: ./scripts/run-dev.sh
+
+# If PostgreSQL fails to start:
+# 1. Stop containers: docker compose down
+# 2. Remove volumes: docker compose down -v
+# 3. Run setup: ./scripts/setup-db.sh
+```
+
+#### **Redis Password Issues**
+```bash
+# If Redis shows "wrong number of arguments":
+# The scripts automatically handle empty Redis passwords
+# No action needed - this is fixed in docker-compose.yml
+```
+
+#### **Environment Variable Issues**
+```bash
+# If you see "DATABASE_PASSWORD not set":
+# The scripts provide automatic defaults:
+# - DATABASE_NAME: astu_complaints
+# - DATABASE_USER: astu_user  
+# - DATABASE_PASSWORD: astu123456
+```
+
+### 🎯 **What Each Script Does**
+
+#### **`./scripts/setup-db.sh`** - Database Initialization
+- Loads environment variables from `server/.env`
+- Starts PostgreSQL and Redis containers
+- Runs database migrations
+- Seeds initial data
+- Verifies database connection
+
+#### **`./scripts/run-dev.sh`** - Development Mode
+- Uses `NODE_ENV=development`
+- Starts all services in attach mode
+- Shows real-time logs
+- Graceful shutdown on Ctrl+C
+
+#### **`./scripts/run-test.sh`** - Production Test Mode
+- Uses `NODE_ENV=production`
+- Starts all services with production settings
+- Health checks enabled
+- Optimized for testing
 
 ---
 
@@ -167,44 +284,45 @@ astu-complaint/
 ├── 🎨 client/                    # React Frontend
 │   ├── src/
 │   │   ├── components/           # Reusable UI components
+│   │   │   ├── OTPVerification.tsx  # Glassmorphism OTP UI
+│   │   │   └── ui/               # Shadcn/ui components
 │   │   ├── pages/              # Application pages
 │   │   ├── hooks/              # Custom React hooks
 │   │   └── utils/              # Utility functions
 │   ├── public/                 # Static assets
-│   └── Dockerfile             # Frontend container
+│   ├── Dockerfile             # Frontend container (fixed nginx user)
+│   └── nginx.conf             # Nginx configuration
 ├── 🖥️ server/                   # Node.js Backend
 │   ├── controllers/           # API route handlers
 │   ├── services/             # Business logic
+│   │   ├── otpService.js      # Redis-based OTP system
+│   │   ├── mailerService.js   # Brevo SMTP integration
+│   │   └── emailVerificationService.js # ASTU email validation
 │   ├── middleware/           # Express middleware
 │   ├── routes/               # API endpoints
 │   ├── models/               # Prisma models
 │   ├── config/               # Configuration files
+│   ├── prisma/               # Database schema
+│   │   └── schema.prisma     # Fixed binary targets
+│   ├── init.sql              # Database initialization (fixed syntax)
+│   ├── .env.docker           # Docker environment template
 │   └── Dockerfile           # Backend container
-├── 🐳 docker-compose.yml          # Service orchestration
+├── 🐳 docker-compose.yml          # Service orchestration (fixed Redis/Postgres)
 ├── 🌐 nginx/                     # Nginx configuration
 ├── 📚 docs/                      # Comprehensive documentation
+│   ├── README.md              # Documentation hub
+│   ├── architecture.md        # System architecture
+│   ├── services.md           # Service documentation
+│   ├── implementation.md     # Technical implementation
+│   ├── security.md          # Security documentation
+│   └── deployment.md        # Deployment guide
 ├── 🔧 scripts/                    # Utility scripts
-└── 📄 .env.production            # Environment template
-```
-
----
-
-## 🎯 **Key Configuration**
-
-### 🔐 **Security Settings**
-
-```bash
-# JWT Configuration
-JWT_SECRET="your-super-secret-jwt-key-minimum-32-characters"
-JWT_EXPIRES_IN="7d"
-
-# SMTP Configuration
-SMTP_HOST="smtp-relay.brevo.com"
-SMTP_USER="your-brevo-email@example.com"
-SMTP_PASS="your-brevo-smtp-api-key"
-
-# Redis Configuration
-REDIS_PASSWORD="your-redis-password"
+│   ├── setup-db.sh          # Database initialization script
+│   ├── run-dev.sh           # Development runner
+│   ├── run-test.sh          # Production test runner
+│   └── README.md            # Script documentation
+├── 📄 .env.production            # Production environment template
+└── 📄 README.md                  # This file
 ```
 
 ### 🏗️ **Database Setup**
