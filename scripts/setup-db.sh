@@ -86,9 +86,27 @@ echo -e "${BLUE}🔄 Running database migrations...${NC}"
 if docker compose exec -T backend npx prisma migrate deploy; then
     echo -e "${GREEN}✅ Migrations completed successfully${NC}"
 else
-    echo -e "${RED}❌ Migration failed${NC}"
-    echo -e "${YELLOW}Please check the database connection and try again${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Migration failed, trying Prisma client regeneration...${NC}"
+    
+    # Try to regenerate Prisma client first
+    if docker compose exec -T backend npx prisma generate; then
+        echo -e "${GREEN}✅ Prisma client regenerated${NC}"
+        
+        # Try migrations again
+        if docker compose exec -T backend npx prisma migrate deploy; then
+            echo -e "${GREEN}✅ Migrations completed successfully after regeneration${NC}"
+        else
+            echo -e "${RED}❌ Migration still failed after regeneration${NC}"
+            echo -e "${YELLOW}Try rebuilding the backend container:${NC}"
+            echo -e "${YELLOW}docker compose down && docker compose up --build backend${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}❌ Prisma client regeneration failed${NC}"
+        echo -e "${YELLOW}Please rebuild the backend container:${NC}"
+        echo -e "${YELLOW}docker compose down && docker compose up --build backend${NC}"
+        exit 1
+    fi
 fi
 
 # Seed the database

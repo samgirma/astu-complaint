@@ -38,8 +38,14 @@ COPY . .
 # Create uploads directory with proper permissions
 RUN mkdir -p uploads && chown -R nodejs:nodejs uploads
 
+# Ensure node_modules permissions for non-root user
+RUN chown -R nodejs:nodejs /app/node_modules
+
 # Switch to non-root user
 USER nodejs
+
+# Generate Prisma client at runtime (ensures proper permissions)
+RUN npx prisma generate
 
 # Expose port
 EXPOSE 5000
