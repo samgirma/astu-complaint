@@ -72,6 +72,16 @@ export NODE_ENV=development
 export RATE_LIMIT_WINDOW_MS=900000
 export RATE_LIMIT_MAX_REQUESTS=100
 
+# Override DATABASE_URL for Docker environment
+export DATABASE_URL="postgresql://${DATABASE_USER:-astu_user}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-astu_complaints}"
+
+# Override REDIS_HOST for Docker environment
+export REDIS_HOST=redis
+export REDIS_PORT=6379
+
+# Override FRONTEND_URL for Docker environment
+export FRONTEND_URL="http://localhost:3000"
+
 echo -e "${GREEN}✅ Environment variables loaded and exported${NC}"
 echo -e "${BLUE}🔍 Key variables:${NC}"
 echo -e "   DATABASE_NAME: ${DATABASE_NAME:-not set}"
