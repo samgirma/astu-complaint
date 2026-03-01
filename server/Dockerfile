@@ -5,6 +5,8 @@ FROM node:18-slim AS base
 FROM base AS deps
 RUN apt-get update && apt-get install -y \
     openssl \
+    libssl1.1 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -24,6 +26,13 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libssl1.1 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
