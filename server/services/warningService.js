@@ -6,8 +6,6 @@ const prisma = new PrismaClient();
 // Check for complaints that need warnings
 const checkComplaintWarnings = async () => {
   try {
-    console.log('Checking for complaint warnings...');
-    
     const now = new Date();
     
     // 1. Check for complaints open for more than 24 hours (not moved to in_progress)
@@ -44,7 +42,6 @@ const checkComplaintWarnings = async () => {
         type: 'complaint_stale'
       });
       
-      console.log(`Sent stale warning for complaint ${complaint.id}`);
     }
 
     // 2. Check for complaints not resolved within 7 weeks (49 days)
@@ -83,7 +80,6 @@ const checkComplaintWarnings = async () => {
         type: 'complaint_overdue'
       });
       
-      console.log(`Sent overdue warning for complaint ${complaint.id}`);
     }
 
     // 3. Check for complaints marked as resolved but not confirmed by student
@@ -126,10 +122,7 @@ const checkComplaintWarnings = async () => {
         type: 'confirmation_pending'
       });
       
-      console.log(`Sent confirmation warning for complaint ${complaint.id}`);
     }
-
-    console.log(`Warning check completed: ${staleOpenComplaints.length} stale, ${overdueComplaints.length} overdue, ${unconfirmedResolvedComplaints.length} unconfirmed`);
     
   } catch (error) {
     console.error('Error checking complaint warnings:', error);
@@ -172,8 +165,6 @@ const triggerStudentDisputeWarning = async (complaintId) => {
       type: 'student_dispute'
     });
 
-    console.log(`Sent student dispute warning for complaint ${complaintId}`);
-    
   } catch (error) {
     console.error('Error triggering student dispute warning:', error);
     throw error;

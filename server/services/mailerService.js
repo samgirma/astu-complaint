@@ -10,10 +10,10 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 
-// Create the Transporter with proper TLS configuration
+// Create the Transporter with Brevo SMTP configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: 587, // Explicitly set to 587
+  port: 587,
   secure: false, // Use TLS (Port 587)
   tls: {
     rejectUnauthorized: false // Prevent local network handshake refusals
@@ -29,12 +29,11 @@ const verifyTransporter = async () => {
   try {
     await transporter.verify();
     console.log('✅ SMTP transporter is ready to send emails');
-    console.log(`📧 Using SMTP host: ${process.env.SMTP_HOST}:${587}`);
     return true;
   } catch (error) {
     console.error('❌ SMTP transporter verification failed:', error);
     console.error('Please check your SMTP credentials and network connection.');
-    throw error; // Throw real error instead of returning false
+    throw error;
   }
 };
 
@@ -101,10 +100,6 @@ const sendOTPEmail = async (email, otp) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${email}`, {
-      messageId: result.messageId,
-      response: result.response
-    });
     
     return {
       success: true,
@@ -161,7 +156,6 @@ const sendWelcomeEmail = async (email, fullName) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ Welcome email sent successfully to ${email}`);
     
     return {
       success: true,
@@ -216,7 +210,6 @@ const sendPasswordResetEmail = async (email, fullName, resetToken) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ Password reset email sent successfully to ${email}`);
     
     return {
       success: true,

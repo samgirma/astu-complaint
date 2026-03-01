@@ -2,11 +2,15 @@ const redis = require('redis');
 const crypto = require('crypto');
 const { sendOTPEmail: sendEmailOTP } = require('./mailerService');
 
-// Redis client setup
+// Redis client setup with production configuration
 const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined
+  socket: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379,
+  },
+  password: process.env.REDIS_PASSWORD || undefined,
+  retry_delay_on_failover: 100,
+  retry_delay_on_cluster_down: 300,
 });
 
 redisClient.on('error', (err) => {
@@ -14,11 +18,11 @@ redisClient.on('error', (err) => {
 });
 
 redisClient.on('connect', () => {
-  console.log('Redis Client Connected');
+  console.log('✅ Redis Client Connected');
 });
 
 // Connect to Redis
-redisClient.connect();
+redisClient.connect().catch(console.error);
 
 // Generate 6-digit OTP
 const generateOTP = () => {
@@ -30,7 +34,6 @@ const storeOTP = async (email, otp) => {
   try {
     const key = `otp:${email}`;
     await redisClient.setEx(key, 600, otp); // 10 minutes = 600 seconds
-    console.log(`OTP stored for ${email}: ${otp}`);
     return true;
   } catch (error) {
     console.error('Error storing OTP:', error);
@@ -38,9 +41,19 @@ const storeOTP = async (email, otp) => {
   }
 };
 
-// Verify OTP against Redis
+// Verify OTP against Redis with 3-strike enforcement
 const verifyOTP = async (email, providedOTP) => {
   try {
+    // Check if user is blocked first
+    const blocked = await isUserBlocked(email);
+    if (blocked) {
+      return { 
+        success: false, 
+        message: 'Account suspended due to too many failed attempts. Try again after 24 hours.',
+        code: 'ACCOUNT_SUSPENDED'
+      };
+    }
+
     const key = `otp:${email}`;
     const storedOTP = await redisClient.get(key);
     
@@ -49,11 +62,28 @@ const verifyOTP = async (email, providedOTP) => {
     }
     
     if (storedOTP !== providedOTP) {
-      return { success: false, message: 'Invalid OTP' };
+      // Increment failed attempts
+      const attempts = await incrementAttempts(email);
+      const remaining = await getRemainingAttempts(email);
+      
+      if (remaining === 0) {
+        return { 
+          success: false, 
+          message: 'Account suspended due to too many failed attempts. Try again after 24 hours.',
+          code: 'ACCOUNT_SUSPENDED'
+        };
+      }
+      
+      return { 
+        success: false, 
+        message: `Invalid OTP. ${remaining} attempts remaining.`,
+        remainingAttempts: remaining
+      };
     }
     
-    // Delete OTP after successful verification
+    // Delete OTP and reset attempts after successful verification
     await redisClient.del(key);
+    await resetAttempts(email);
     return { success: true, message: 'OTP verified successfully' };
   } catch (error) {
     console.error('Error verifying OTP:', error);
@@ -139,25 +169,67 @@ const resetAttempts = async (email) => {
   }
 };
 
-// Send OTP via email
-const sendOTPEmail = async (email, otp) => {
+// Send OTP via email with suspension check
+const sendOTPEmail = async (email) => {
   try {
-    console.log(`Sending OTP ${otp} to ${email}`);
+    // Check if user is blocked before sending OTP
+    const blocked = await isUserBlocked(email);
+    if (blocked) {
+      return {
+        success: false,
+        message: 'Account suspended due to too many failed attempts. Try again after 24 hours.',
+        code: 'ACCOUNT_SUSPENDED'
+      };
+    }
+
+    // Check resend cooldown
+    const canResend = await canResendOTP(email);
+    if (!canResend) {
+      return {
+        success: false,
+        message: 'Please wait before requesting another OTP.',
+        code: 'RESEND_COOLDOWN'
+      };
+    }
+
+    const otp = generateOTP();
     
-    // Use the real email service
+    // Store OTP in Redis
+    const stored = await storeOTP(email, otp);
+    if (!stored) {
+      return {
+        success: false,
+        message: 'Failed to generate verification code. Please try again.',
+        code: 'STORAGE_ERROR'
+      };
+    }
+    
+    // Send email
     const result = await sendEmailOTP(email, otp);
     
     if (result.success) {
-      console.log(`✅ OTP email sent successfully to ${email}`);
-      return true;
+      // Set resend cooldown after successful send
+      await setResendCooldown(email);
+      return {
+        success: true,
+        message: 'OTP sent successfully',
+        remainingAttempts: await getRemainingAttempts(email)
+      };
     } else {
-      console.error(`❌ Failed to send OTP email to ${email}`);
-      return false;
+      return {
+        success: false,
+        message: 'Failed to send verification email. Please try again.',
+        code: 'EMAIL_ERROR'
+      };
     }
     
   } catch (error) {
     console.error('Error sending OTP email:', error);
-    return false;
+    return {
+      success: false,
+      message: 'Failed to send verification code. Please try again.',
+      code: 'SYSTEM_ERROR'
+    };
   }
 };
 

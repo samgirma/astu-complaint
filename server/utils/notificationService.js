@@ -20,7 +20,6 @@ const sendNotificationToAdmins = async ({ title, message, type = 'NEW_COMPLAINT'
     });
 
     if (adminUsers.length === 0) {
-      console.log('No active admin users found');
       return;
     }
 
@@ -37,8 +36,6 @@ const sendNotificationToAdmins = async ({ title, message, type = 'NEW_COMPLAINT'
       data: notifications
     });
 
-    console.log(`Created ${notifications.length} admin notifications: ${title}`);
-    
     return {
       success: true,
       recipientsCount: adminUsers.length,
@@ -72,7 +69,6 @@ const sendWarningToStaff = async ({ title, message, targetDepartment, type }) =>
     });
 
     if (staffUsers.length === 0) {
-      console.log(`No active staff users found in department ${targetDepartment}`);
       return;
     }
 
@@ -89,8 +85,6 @@ const sendWarningToStaff = async ({ title, message, targetDepartment, type }) =>
       data: notifications
     });
 
-    console.log(`Created ${notifications.length} warnings for department ${targetDepartment}`);
-    
     // Here you could also integrate with email service, SMS, etc.
     // For now, we're creating in-app notifications
     

@@ -1,11 +1,11 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { generateOTP, storeOTP, verifyOTP, incrementAttempts, isUserBlocked, getRemainingAttempts, canResendOTP, setResendCooldown, resetAttempts, sendOTPEmail } = require('../services/otpService');
+const { sendOTPEmail, verifyOTP, isUserBlocked, getRemainingAttempts } = require('../services/otpService');
 const { strictEmailValidation } = require('../services/emailVerificationService');
 
 const router = express.Router();
 
-// POST /api/auth/send-otp - Send OTP to email
+// POST /api/auth/otp/send-otp - Send OTP to email
 router.post('/send-otp', [
   body('email')
     .isEmail()
@@ -24,75 +24,36 @@ router.post('/send-otp', [
 
     const { email } = req.body;
 
-    // Step A & B: Strict email validation (Domain + Deep validation)
-    console.log(`🔍 Starting strict email validation for: ${email}`);
+    // Strict email validation for ASTU domains only
     const emailValidation = await strictEmailValidation(email);
     
     if (!emailValidation.valid) {
-      console.log(`❌ Email validation failed: ${emailValidation.reason}`);
       return res.status(400).json({
         success: false,
         message: emailValidation.reason,
         code: emailValidation.code
       });
     }
+
+    // Send OTP with built-in suspension and cooldown checks
+    const result = await sendOTPEmail(email);
     
-    console.log(`✅ Email validation passed: ${email}`);
-
-    // Check if user is blocked
-    const blocked = await isUserBlocked(email);
-    if (blocked) {
-      return res.status(429).json({
+    if (!result.success) {
+      const statusCode = result.code === 'ACCOUNT_SUSPENDED' ? 429 : 400;
+      return res.status(statusCode).json({
         success: false,
-        message: 'Too many attempts. Please try again after 24 hours.',
-        code: 'USER_BLOCKED'
+        message: result.message,
+        code: result.code,
+        remainingAttempts: result.remainingAttempts
       });
     }
-
-    // Check resend cooldown
-    const canResend = await canResendOTP(email);
-    if (!canResend) {
-      return res.status(429).json({
-        success: false,
-        message: 'Please wait before requesting another OTP.',
-        code: 'RESEND_COOLDOWN'
-      });
-    }
-
-    // Generate and store OTP
-    const otp = generateOTP();
-    const stored = await storeOTP(email, otp);
-    if (!stored) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to generate OTP. Please try again.'
-      });
-    }
-
-    // Increment attempt counter
-    await incrementAttempts(email);
-
-    // Send OTP via email
-    const emailSent = await sendOTPEmail(email, otp);
-    if (!emailSent) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send OTP email. Please try again.'
-      });
-    }
-
-    // Set resend cooldown
-    await setResendCooldown(email);
-
-    // Get remaining attempts
-    const remainingAttempts = await getRemainingAttempts(email);
 
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully',
+      message: result.message,
       data: {
         email,
-        remainingAttempts,
+        remainingAttempts: result.remainingAttempts,
         cooldownActive: true
       }
     });
@@ -101,13 +62,12 @@ router.post('/send-otp', [
     console.error('Error sending OTP:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 });
 
-// POST /api/auth/verify-otp - Verify OTP
+// POST /api/auth/otp/verify-otp - Verify OTP
 router.post('/verify-otp', [
   body('email')
     .isEmail()
@@ -130,38 +90,22 @@ router.post('/verify-otp', [
 
     const { email, otp } = req.body;
 
-    // Check if user is blocked
-    const blocked = await isUserBlocked(email);
-    if (blocked) {
-      return res.status(429).json({
-        success: false,
-        message: 'Account temporarily blocked due to too many failed attempts.',
-        code: 'USER_BLOCKED'
-      });
-    }
-
-    // Verify OTP
+    // Verify OTP with built-in 3-strike enforcement
     const verification = await verifyOTP(email, otp);
     
     if (!verification.success) {
-      // Increment failed attempts
-      await incrementAttempts(email);
-      const remainingAttempts = await getRemainingAttempts(email);
-      
-      return res.status(400).json({
+      const statusCode = verification.code === 'ACCOUNT_SUSPENDED' ? 429 : 400;
+      return res.status(statusCode).json({
         success: false,
         message: verification.message,
-        remainingAttempts,
-        code: 'INVALID_OTP'
+        code: verification.code,
+        remainingAttempts: verification.remainingAttempts
       });
     }
 
-    // Reset attempts on successful verification
-    await resetAttempts(email);
-
     res.status(200).json({
       success: true,
-      message: 'OTP verified successfully',
+      message: verification.message,
       data: {
         email,
         verified: true
@@ -172,14 +116,13 @@ router.post('/verify-otp', [
     console.error('Error verifying OTP:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 });
 
-// GET /api/auth/otp-status - Check OTP status and remaining attempts
-router.get('/otp-status', async (req, res) => {
+// GET /api/auth/otp/status - Check OTP status and remaining attempts
+router.get('/status', async (req, res) => {
   try {
     const { email } = req.query;
     
@@ -192,7 +135,6 @@ router.get('/otp-status', async (req, res) => {
 
     const blocked = await isUserBlocked(email);
     const remainingAttempts = await getRemainingAttempts(email);
-    const canResend = await canResendOTP(email);
 
     res.status(200).json({
       success: true,
@@ -200,7 +142,6 @@ router.get('/otp-status', async (req, res) => {
         email,
         blocked,
         remainingAttempts,
-        canResend,
         maxAttempts: 3
       }
     });
@@ -209,8 +150,7 @@ router.get('/otp-status', async (req, res) => {
     console.error('Error checking OTP status:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 });

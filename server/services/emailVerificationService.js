@@ -8,8 +8,6 @@ const dns = require('dns').promises;
  */
 const strictEmailValidation = async (email) => {
   try {
-    console.log(`🔍 Starting strict email validation for: ${email}`);
-    
     // Step A: Regex check for @astu.edu.et or @astust.edu.et domain
     if (!email.endsWith('@astu.edu.et') && !email.endsWith('@astust.edu.et')) {
       return {
@@ -19,27 +17,20 @@ const strictEmailValidation = async (email) => {
       };
     }
     
-    console.log(`✅ Step A passed: Email ends with @astu.edu.et or @astust.edu.et`);
-    
     // Step B: For ASTU emails, use MX record validation instead of SMTP
     // Institutional email servers often block SMTP verification attempts
-    console.log(`🔍 Step B: Performing MX record validation for ASTU email...`);
-    
     const domain = email.split('@')[1];
     
     try {
       const mxRecords = await dns.resolveMx(domain);
       
       if (!mxRecords || mxRecords.length === 0) {
-        console.log(`❌ Step B failed: No MX records found for ${domain}`);
         return {
           valid: false,
           reason: 'Domain does not have valid mail servers',
           code: 'DOMAIN_NO_MX'
         };
       }
-      
-      console.log(`✅ Step B passed: Found ${mxRecords.length} MX records for ${domain}`);
       
       // Additional format validation for ASTU emails
       const astuPattern = /^[a-zA-Z]+\.[a-zA-Z]+@(astu|astust)\.edu\.et$/;
@@ -59,7 +50,6 @@ const strictEmailValidation = async (email) => {
       };
       
     } catch (dnsError) {
-      console.log(`❌ Step B failed: DNS lookup error - ${dnsError.message}`);
       return {
         valid: false,
         reason: 'Unable to verify email domain. Please try again.',

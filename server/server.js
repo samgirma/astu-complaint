@@ -211,7 +211,6 @@ const startServer = async () => {
     await connectDB();
     
     // Verify SMTP connection before starting server
-    console.log('🔧 Verifying SMTP connection...');
     await verifyTransporter();
     
     // Create uploads directory if it doesn't exist
@@ -227,8 +226,6 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🌐 API URL: http://localhost:${PORT}/api`);
-      console.log(`❤️  Health check: http://localhost:${PORT}/health`);
     });
 
   } catch (error) {
@@ -253,12 +250,10 @@ process.on('uncaughtException', (err) => {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('👋 SIGINT received, shutting down gracefully');
   process.exit(0);
 });
 
