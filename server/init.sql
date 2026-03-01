@@ -4,10 +4,12 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- Create custom types if they don't exist
 DO $$ BEGIN
-    CREATE TYPE IF NOT EXISTS app_role AS ENUM ('STUDENT', 'DEPARTMENT_STAFF', 'ADMIN');
-    CREATE TYPE IF NOT EXISTS complaint_status AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE app_role AS ENUM ('STUDENT', 'DEPARTMENT_STAFF', 'ADMIN');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'complaint_status') THEN
+        CREATE TYPE complaint_status AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
+    END IF;
 END $$;
 
 -- Create indexes for better performance
