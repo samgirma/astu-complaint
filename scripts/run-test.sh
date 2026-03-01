@@ -44,6 +44,22 @@ set -a
 source "$SERVER_ENV_FILE"
 set +a
 
+# Verify critical variables are set
+if [ -z "$DATABASE_PASSWORD" ]; then
+    echo -e "${YELLOW}⚠️  DATABASE_PASSWORD not set, using default${NC}"
+    export DATABASE_PASSWORD="astu123456"
+fi
+
+if [ -z "$DATABASE_NAME" ]; then
+    echo -e "${YELLOW}⚠️  DATABASE_NAME not set, using default${NC}"
+    export DATABASE_NAME="astu_complaints"
+fi
+
+if [ -z "$DATABASE_USER" ]; then
+    echo -e "${YELLOW}⚠️  DATABASE_USER not set, using default${NC}"
+    export DATABASE_USER="astu_user"
+fi
+
 # Export variables for docker-compose
 export DATABASE_NAME DATABASE_USER DATABASE_PASSWORD
 export JWT_SECRET JWT_EXPIRES_IN
@@ -56,7 +72,12 @@ export NODE_ENV=production
 export RATE_LIMIT_WINDOW_MS=900000
 export RATE_LIMIT_MAX_REQUESTS=100
 
-echo -e "${GREEN}✅ Environment variables loaded${NC}"
+echo -e "${GREEN}✅ Environment variables loaded and exported${NC}"
+echo -e "${BLUE}🔍 Key variables:${NC}"
+echo -e "   DATABASE_NAME: ${DATABASE_NAME:-not set}"
+echo -e "   DATABASE_USER: ${DATABASE_USER:-not set}"
+echo -e "   NODE_ENV: ${NODE_ENV:-not set}"
+echo -e "   FRONTEND_URL: ${FRONTEND_URL:-not set}"
 echo ""
 
 # Check Docker is running
