@@ -202,42 +202,33 @@ app.use(notFound);
 // Global error handler
 app.use(errorHandler);
 
-// Start server
+// 1. Define the PORT once at the top level
 const PORT = process.env.PORT || 10000;
 
 const startServer = async () => {
   try {
-    // 1. Start listening IMMEDIATELY (Fixes the Render "No open ports" error)
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`==> 🚀 Server is live on port ${PORT}`);
+    // 2. Connect to Database FIRST (but with a timeout or non-blocking)
+    await connectDB().catch(err => console.error("DB Connection Error:", err.message));
+    
+    // 3. Start listening ONLY ONCE
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`==> 🚀 ASTU Server is live on port ${PORT}`);
     });
 
-    // 2. Connect to database in the background
-    await connectDB();
-    console.log("==> ✅ Database Connected");
-    
-    // 3. Verify SMTP (Move this AFTER listen so it doesn't block the port)
-    verifyTransporter().then(() => {
-      console.log("==> ✅ SMTP Verified");
-    }).catch(err => {
-      console.error("==> ❌ SMTP Warning: Mailer might not work", err.message);
-    });
-    
-    // 4. Create uploads directory
-    const fs = require('fs');
-    if (!fs.existsSync('uploads')) {
-      fs.mkdirSync('uploads');
-    }
-
+    // 4. Run secondary tasks AFTER the server is live
+    verifyTransporter().catch(err => console.error("Mailer Warning:", err.message));
     scheduleWarningChecks();
+    
+    const fs = require('fs');
+    if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
   } catch (error) {
-    console.error("==> ❌ Critical Startup Error:", error);
-    // Don't exit immediately so you can see the logs
-    setTimeout(() => process.exit(1), 5000);
+    console.error("==> ❌ Fatal Startup Error:", error.message);
+    setTimeout(() => process.exit(1), 1000);
   }
 };
 
+// 5. CALL the function
 startServer();
 
 // Enhanced error logging for production
