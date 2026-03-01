@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${DATABASE_NAME:-astu_complaints}
       POSTGRES_USER: ${DATABASE_USER:-astu_user}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-astu123456}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -26,7 +26,14 @@ services:
     image: redis:7-alpine
     container_name: astu-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    command: >
+      sh -c "
+      if [ -n \"${REDIS_PASSWORD}\" ]; then
+        redis-server --appendonly yes --requirepass \"${REDIS_PASSWORD}\"
+      else
+        redis-server --appendonly yes
+      fi
+      "
     volumes:
       - redis_data:/data
     networks:
