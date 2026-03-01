@@ -17,7 +17,7 @@
 
 ## 🎬 **Visuals & Demo**
 
-![ASTU Complaint System Screenshot](https://via.placeholder.com/800x400/1e293b/ffffff?text=ASTU+Smart+Complaint+System+Dashboard)
+![ASTU Complaint System Screenshot](https://res.cloudinary.com/dk3iqdf6b/image/upload/v1772353012/Screenshot_2026-03-01_11.15.54_AM_hspqpl.png)
 
 *Experience the future of university complaint management with our intuitive interface*
 
