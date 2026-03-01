@@ -54,8 +54,9 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = process.env.NODE_ENV === 'production' 
       ? [
-          'https://astu-complient.firatech.systems', 
-          'https://astu-frontend.onrender.com', // Add your Render URL here
+          'https://astu-complient.firatech.systems',
+          'https://astu-frontend.onrender.com',
+          "https://astu-complaint-frontend.onrender.com", // Add your Render URL here
           process.env.FRONTEND_URL                // Dynamic fallback
         ]
       : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:8080'];
@@ -202,34 +203,42 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 const startServer = async () => {
   try {
-    // Connect to database
+    // 1. Start listening IMMEDIATELY (Fixes the Render "No open ports" error)
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`==> 🚀 Server is live on port ${PORT}`);
+    });
+
+    // 2. Connect to database in the background
     await connectDB();
+    console.log("==> ✅ Database Connected");
     
-    // Verify SMTP connection before starting server
-    await verifyTransporter();
+    // 3. Verify SMTP (Move this AFTER listen so it doesn't block the port)
+    verifyTransporter().then(() => {
+      console.log("==> ✅ SMTP Verified");
+    }).catch(err => {
+      console.error("==> ❌ SMTP Warning: Mailer might not work", err.message);
+    });
     
-    // Create uploads directory if it doesn't exist
+    // 4. Create uploads directory
     const fs = require('fs');
     if (!fs.existsSync('uploads')) {
       fs.mkdirSync('uploads');
     }
 
-    // Start automated warning checks
     scheduleWarningChecks();
 
-    // Start listening
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`==> Server is confirmed live on port ${PORT}`);
-    });
-
   } catch (error) {
-    process.exit(1);
+    console.error("==> ❌ Critical Startup Error:", error);
+    // Don't exit immediately so you can see the logs
+    setTimeout(() => process.exit(1), 5000);
   }
 };
+
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
