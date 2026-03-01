@@ -202,33 +202,29 @@ app.use(notFound);
 // Global error handler
 app.use(errorHandler);
 
-// 1. Define the PORT once at the top level
+// Start server
 const PORT = process.env.PORT || 10000;
 
 const startServer = async () => {
   try {
-    // 2. Connect to Database FIRST (but with a timeout or non-blocking)
-    await connectDB().catch(err => console.error("DB Connection Error:", err.message));
+    await connectDB();
     
-    // 3. Start listening ONLY ONCE
+    // ONLY ONE LISTEN CALL HERE
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`==> 🚀 ASTU Server is live on port ${PORT}`);
+      console.log(`==> 🚀 ASTU Server is officially live on port ${PORT}`);
     });
 
-    // 4. Run secondary tasks AFTER the server is live
-    verifyTransporter().catch(err => console.error("Mailer Warning:", err.message));
+    // Run these in the background after server is live
+    verifyTransporter().catch(err => console.log("Mailer check failed, but server is still live."));
     scheduleWarningChecks();
-    
-    const fs = require('fs');
-    if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
   } catch (error) {
     console.error("==> ❌ Fatal Startup Error:", error.message);
-    setTimeout(() => process.exit(1), 1000);
+    process.exit(1);
   }
 };
 
-// 5. CALL the function
+// MAKE SURE THERE IS NO app.listen() BELOW THIS LINE!
 startServer();
 
 // Enhanced error logging for production
