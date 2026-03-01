@@ -55,8 +55,7 @@ const corsOptions = {
     const allowedOrigins = process.env.NODE_ENV === 'production' 
       ? [
           'https://astu-complient.firatech.systems',
-          'https://astu-frontend.onrender.com',
-          "https://astu-complaint-frontend.onrender.com", // Add your Render URL here
+          "https://astu-complaint-frontendd.onrender.com", // Add your Render URL here
           process.env.FRONTEND_URL                // Dynamic fallback
         ]
       : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:8080'];
