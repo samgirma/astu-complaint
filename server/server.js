@@ -205,22 +205,40 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 10000;
 
+let isStarting = false;
+
 const startServer = async () => {
+  if (isStarting) return; // Stop if already in progress
+  isStarting = true;
+
   try {
     await connectDB();
     
-    // ONLY ONE LISTEN CALL HERE
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`==> 🚀 ASTU Server is officially live on port ${PORT}`);
-    });
+    // Safety check: Use a global variable to prevent double-binding
+    if (!global.serverRunning) {
+      const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`==> 🚀 ASTU Server is officially live on port ${PORT}`);
+        global.serverRunning = true;
+      });
 
-    // Run these in the background after server is live
-    verifyTransporter().catch(err => console.log("Mailer check failed, but server is still live."));
+      // Handle server errors (like EADDRINUSE) gracefully
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.log('==> ⚠️ Port already in use, skipping redundant listen call.');
+        } else {
+          throw err;
+        }
+      });
+    }
+
+    // Background tasks
+    verifyTransporter().catch(() => {});
     scheduleWarningChecks();
 
   } catch (error) {
     console.error("==> ❌ Fatal Startup Error:", error.message);
-    process.exit(1);
+    isStarting = false;
+    // Don't exit immediately; let's first instance stay alive if it exists
   }
 };
 
