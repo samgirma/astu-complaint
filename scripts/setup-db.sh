@@ -63,7 +63,10 @@ fi
 
 # Check if containers are running
 echo -e "${BLUE}🐳 Checking container status...${NC}"
-if ! docker compose ps postgres | grep -q "Up"; then
+POSTGRES_RUNNING=$(docker compose ps postgres | grep -q "Up" && echo "yes" || echo "no")
+REDIS_RUNNING=$(docker compose ps redis | grep -q "Up" && echo "no" || echo "no")
+
+if [ "$POSTGRES_RUNNING" = "no" ]; then
     echo -e "${YELLOW}⚠️  PostgreSQL container is not running${NC}"
     echo -e "${BLUE}🚀 Starting PostgreSQL container...${NC}"
     docker compose up -d postgres
@@ -71,12 +74,20 @@ if ! docker compose ps postgres | grep -q "Up"; then
     sleep 10
 fi
 
-if ! docker compose ps redis | grep -q "Up"; then
+if [ "$REDIS_RUNNING" = "no" ]; then
     echo -e "${YELLOW}⚠️  Redis container is not running${NC}"
     echo -e "${BLUE}🚀 Starting Redis container...${NC}"
     docker compose up -d redis
     sleep 5
 fi
+
+# Start backend container temporarily for migrations
+echo -e "${BLUE}🚀 Starting backend container for database setup...${NC}"
+docker compose up -d backend
+
+# Wait for backend to be ready
+echo -e "${BLUE}⏳ Waiting for backend to be ready...${NC}"
+sleep 15
 
 echo -e "${GREEN}✅ Containers are running${NC}"
 echo ""
@@ -125,6 +136,10 @@ else
     echo -e "${RED}❌ Database connection failed${NC}"
     exit 1
 fi
+
+# Stop backend container after setup (it will be started by run-dev.sh or run-test.sh)
+echo -e "${BLUE}🛑 Stopping backend container (will be started by application scripts)...${NC}"
+docker compose stop backend
 
 echo ""
 echo -e "${GREEN}🎉 Database setup completed successfully!${NC}"
