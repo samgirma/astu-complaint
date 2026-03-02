@@ -35,7 +35,7 @@ const sendOTPEmail = async (email, otp) => {
         name: 'ASTU Support',
         email: process.env.EMAIL_FROM
       },
-      to: [email],
+      to: [{ email: email }],
       subject: "Your ASTU Verification Code",
       htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; border-radius: 8px;">
@@ -114,7 +114,7 @@ const sendWelcomeEmail = async (email, fullName) => {
         name: 'ASTU Support',
         email: process.env.EMAIL_FROM
       },
-      to: [email],
+      to: [{ email: email }],
       subject: "Welcome to ASTU Complaint System",
       htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc;">
@@ -174,7 +174,7 @@ const sendPasswordResetEmail = async (email, fullName, resetToken) => {
         name: 'ASTU Support',
         email: process.env.EMAIL_FROM
       },
-      to: [email],
+      to: [{ email: email }],
       subject: "Reset Your ASTU Password",
       htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc;">
