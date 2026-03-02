@@ -23,7 +23,7 @@
 
 <br>
 
-[<img src="https://img.shields.io/badge/Live_Demo-4285F4?style=for-the-badge&logo=web&logoColor=white" alt="Live Demo">](https://your-domain.com)
+[<img src="https://img.shields.io/badge/Live_Demo-4285F4?style=for-the-badge&logo=web&logoColor=white" alt="Live Demo">](https://astu-complient.firatech.systems/)
 [<img src="https://img.shields.io/badge/View_Documentation-00C851?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation">](./docs/README.md)
 [<img src="https://img.shields.io/badge/Developer_Portfolio-FF6B6B?style=for-the-badge&logo=github&logoColor=white" alt="Portfolio">](https://samgirma.app)
 
