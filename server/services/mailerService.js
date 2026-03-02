@@ -109,6 +109,7 @@ const sendOTPEmail = async (email, otp) => {
 // Send welcome email after successful registration
 const sendWelcomeEmail = async (email, fullName) => {
   try {
+    const frontendUrl = process.env.FRONTEND_URL || 'https://astu-complient.firatech.systems';
     const emailData = {
       sender: {
         name: 'ASTU Support',
@@ -138,7 +139,7 @@ const sendWelcomeEmail = async (email, fullName) => {
             </div>
             
             <div style="margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              <a href="${frontendUrl}/dashboard" style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                 Go to Dashboard
               </a>
             </div>
@@ -167,7 +168,8 @@ const sendWelcomeEmail = async (email, fullName) => {
 // Send password reset email
 const sendPasswordResetEmail = async (email, fullName, resetToken) => {
   try {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://astu-complient.firatech.systems';
+    const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
     
     const emailData = {
       sender: {
