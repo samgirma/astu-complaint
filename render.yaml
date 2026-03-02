@@ -69,9 +69,7 @@ services:
         value: smtp-relay.brevo.com
       - key: SMTP_PORT
         value: 587
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      - key: BREVO_API_KEY
         sync: false
       - key: EMAIL_FROM
         value: girmasamuel200@gmail.com

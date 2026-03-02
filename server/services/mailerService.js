@@ -1,31 +1,26 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 
-// Validate SMTP credentials on startup
-const requiredEnvVars = ['SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
+// Validate Brevo API credentials on startup
+const requiredEnvVars = ['BREVO_API_KEY', 'EMAIL_FROM'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
   process.exit(1);
 }
 
-// Create the Transporter with hardcoded Brevo SMTP configuration
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  tls: {
-    rejectUnauthorized: false
-  },
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+// Brevo API configuration
+const brevoApi = axios.create({
+  baseURL: 'https://api.brevo.com/v3',
+  headers: {
+    'api-key': process.env.BREVO_API_KEY,
+    'Content-Type': 'application/json'
+  }
 });
 
-// Verify transporter connection on startup
+// Verify Brevo API connection on startup
 const verifyTransporter = async () => {
   try {
-    await transporter.verify();
+    await brevoApi.get('/smtp/account');
     return true;
   } catch (error) {
     throw error;
@@ -35,11 +30,14 @@ const verifyTransporter = async () => {
 // The function to send the OTP
 const sendOTPEmail = async (email, otp) => {
   try {
-    const mailOptions = {
-      from: `"ASTU Support" <${process.env.EMAIL_FROM}>`,
-      to: email,
+    const emailData = {
+      sender: {
+        name: 'ASTU Support',
+        email: process.env.EMAIL_FROM
+      },
+      to: [email],
       subject: "Your ASTU Verification Code",
-      html: `
+      htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; border-radius: 8px;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <!-- Header -->
@@ -83,7 +81,7 @@ const sendOTPEmail = async (email, otp) => {
             <!-- Footer -->
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                © 2024 ASTU (Adama Science and Technology University). All rights reserved.
+                &copy; 2024 ASTU (Adama Science and Technology University). All rights reserved.
               </p>
               <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0;">
                 This is an automated message. Please do not reply to this email.
@@ -91,18 +89,19 @@ const sendOTPEmail = async (email, otp) => {
             </div>
           </div>
         </div>
-      `,
+      `
     };
 
-    const result = await transporter.sendMail(mailOptions);
+    const result = await brevoApi.post('/smtp/email', emailData);
     
     return {
       success: true,
-      messageId: result.messageId,
-      response: result.response
+      messageId: result.data.messageId,
+      response: result.data
     };
     
   } catch (error) {
+    console.error('Brevo API Error:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -110,11 +109,14 @@ const sendOTPEmail = async (email, otp) => {
 // Send welcome email after successful registration
 const sendWelcomeEmail = async (email, fullName) => {
   try {
-    const mailOptions = {
-      from: `"ASTU Support" <${process.env.EMAIL_FROM}>`,
-      to: email,
+    const emailData = {
+      sender: {
+        name: 'ASTU Support',
+        email: process.env.EMAIL_FROM
+      },
+      to: [email],
       subject: "Welcome to ASTU Complaint System",
-      html: `
+      htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <h1 style="color: #1e40af; font-size: 28px; margin-bottom: 10px;">Welcome to ASTU!</h1>
@@ -122,7 +124,7 @@ const sendWelcomeEmail = async (email, fullName) => {
             
             <h2 style="color: #374151; font-size: 24px; margin-bottom: 15px;">Hello ${fullName}!</h2>
             <p style="color: #6b7280; font-size: 16px; margin-bottom: 30px; line-height: 1.5;">
-              Your account has been successfully created. You can now submit complaints, track their status, and communicate with the relevant departments.
+              Your account has been successfully created. You can now submit complaints, track their status, and communicate with relevant departments.
             </p>
             
             <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">
@@ -146,17 +148,18 @@ const sendWelcomeEmail = async (email, fullName) => {
             </p>
           </div>
         </div>
-      `,
+      `
     };
 
-    const result = await transporter.sendMail(mailOptions);
+    const result = await brevoApi.post('/smtp/email', emailData);
     
     return {
       success: true,
-      messageId: result.messageId
+      messageId: result.data.messageId
     };
     
   } catch (error) {
+    console.error('Brevo API Error:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -166,11 +169,14 @@ const sendPasswordResetEmail = async (email, fullName, resetToken) => {
   try {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
     
-    const mailOptions = {
-      from: `"ASTU Support" <${process.env.EMAIL_FROM}>`,
-      to: email,
+    const emailData = {
+      sender: {
+        name: 'ASTU Support',
+        email: process.env.EMAIL_FROM
+      },
+      to: [email],
       subject: "Reset Your ASTU Password",
-      html: `
+      htmlContent: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
             <h1 style="color: #dc2626; font-size: 28px; margin-bottom: 10px;">Password Reset</h1>
@@ -199,23 +205,24 @@ const sendPasswordResetEmail = async (email, fullName, resetToken) => {
             </p>
           </div>
         </div>
-      `,
+      `
     };
 
-    const result = await transporter.sendMail(mailOptions);
+    const result = await brevoApi.post('/smtp/email', emailData);
     
     return {
       success: true,
-      messageId: result.messageId
+      messageId: result.data.messageId
     };
     
   } catch (error) {
+    console.error('Brevo API Error:', error.response?.data || error.message);
     throw error;
   }
 };
 
 module.exports = {
-  transporter,
+  brevoApi,
   verifyTransporter,
   sendOTPEmail,
   sendWelcomeEmail,
