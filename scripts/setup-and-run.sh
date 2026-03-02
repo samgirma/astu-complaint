@@ -37,6 +37,16 @@ if [ ! -f "$SERVER_ENV_FILE" ]; then
     fi
 fi
 
+# Ensure SSL directory exists for Nginx
+echo -e "${BLUE}🛡️ Preparing Nginx SSL directory...${NC}"
+mkdir -p "$PROJECT_ROOT/nginx/ssl"
+
+# Optional: Check if certs exist, if not, warn the user
+if [ ! -f "$PROJECT_ROOT/nginx/ssl/astu.local.crt" ]; then
+    echo -e "${YELLOW}⚠️ SSL certificates not found in ./nginx/ssl/${NC}"
+    echo -e "${YELLOW}Access via http://localhost or generate certs for https://astu.local${NC}"
+fi
+
 # Load environment variables
 echo -e "${BLUE}📖 Loading environment variables...${NC}"
 set -a
@@ -57,6 +67,12 @@ fi
 if [ -z "$DATABASE_USER" ]; then
     echo -e "${YELLOW}⚠️  DATABASE_USER not set, using default${NC}"
     export DATABASE_USER="astu_user"
+fi
+
+if [ -z "$BREVO_API_KEY" ]; then
+    echo -e "${RED}❌ Error: BREVO_API_KEY is not set in .env${NC}"
+    echo -e "${YELLOW}The system requires the Brevo API to send OTPs.${NC}"
+    exit 1
 fi
 
 # Export variables for docker-compose
@@ -90,10 +106,13 @@ echo -e "${BLUE}🏗️  Building and starting all services...${NC}"
 echo -e "${YELLOW}This may take a few minutes on first run...${NC}"
 docker compose up --build -d
 
-# Wait for database to be ready
-echo -e "${BLUE}⏳ Waiting for database to be ready...${NC}"
-sleep 20
-
+echo -e "${BLUE}⏳ Waiting for Database and Redis to be healthy...${NC}"
+# This loop waits until the containers report 'healthy' instead of a fixed 20 seconds
+until [ "$(docker inspect -f {{.State.Health.Status}} astu-postgres-db)" == "healthy" ]; do
+    echo -e "${YELLOW}   Postgres is still initializing...${NC}"
+    sleep 2
+done
+echo -e "${GREEN}✅ Database is ready!${NC}"
 # Run database migrations
 echo -e "${BLUE}🔄 Running database migrations...${NC}"
 if docker compose exec -T backend npx prisma migrate deploy; then
